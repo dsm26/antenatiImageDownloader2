@@ -23,12 +23,15 @@ st.markdown(f"💡 **How to use:** Paste a full Antenati URL or Image ID below. 
 st.markdown(f"Example URL: https://antenati.cultura.gov.it/ark:/12657/an_ua264421/LzPr8VJ")
 st.markdown(f"Example Image ID: LzPr8VJ")
 
-# Input with logic to handle URLs or IDs
+# 1. Input with logic to handle URLs or IDs
 raw_input = st.text_input("Paste Antenati URL or Image ID here:")
-input_clean = raw_input.strip()
+
+# 2. Trim whitespace AND remove trailing slashes
+input_clean = raw_input.strip().rstrip('/')
 
 def get_image_id(user_input):
     if "antenati.cultura.gov.it" in user_input:
+        # Regex looks for the text after the last remaining slash
         match = re.search(r'([^/]+)$', user_input)
         return match.group(1) if match else user_input
     return user_input
