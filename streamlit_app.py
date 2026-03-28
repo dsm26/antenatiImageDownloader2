@@ -64,7 +64,7 @@ def get_stitched_image(image_id):
     info = info_resp.json()
     
     w, h = info["width"], info["height"]
-    tw, th = info["tiles"][0]["width"], info.get("tiles")[0].get("height", info["tiles"][0]["width"])
+    tw, th = info["tiles"][0]["width"], info.get("tiles"][0].get("height", info["tiles"][0]["width"])
     
     final_img = Image.new("RGB", (w, h))
     cols, rows = math.ceil(w / tw), math.ceil(h / th)
@@ -105,13 +105,26 @@ def get_ai_analysis(img_bytes, metadata_context, _model_instance):
     response = _model_instance.generate_content([prompt, {"mime_type": "image/jpeg", "data": img_bytes}])
     return response.text
 
-# --- CSV HELPER ---
-def format_csv_row(ai_text, image_id):
+# --- CSV HELPER (Updated to include Source URL) ---
+def format_csv_row(ai_text, image_id, source_input):
     try:
+        # Determine the best source URL for the CSV
+        source_url = source_input if "http" in source_input else f"https://antenati.cultura.gov.it/ark:/12657/an_ua/{image_id}"
+        
         match = re.search(r'RAW_DATA:\s*(\{.*?\})', ai_text, re.DOTALL)
         if match:
             data = json.loads(match.group(1))
-            row = [image_id, data.get("type",""), data.get("subject",""), data.get("date",""), data.get("father",""), data.get("mother",""), data.get("town",""), data.get("notes","").replace("\n", " ")]
+            row = [
+                image_id, 
+                data.get("type",""), 
+                data.get("subject",""), 
+                data.get("date",""), 
+                data.get("father",""), 
+                data.get("mother",""), 
+                data.get("town",""), 
+                data.get("notes","").replace("\n", " "),
+                source_url  # New Column
+            ]
             return ",".join([f'"{str(x)}"' for x in row])
     except:
         return None
@@ -131,28 +144,30 @@ with st.sidebar:
         st.header("🕒 Recent History")
         for h_id in reversed(st.session_state.history[-5:]):
             if st.button(f"📄 {h_id}", key=f"hist_{h_id}", use_container_width=True):
+                st.query_params["url"] = "" 
                 st.query_params["image_id"] = h_id
                 st.rerun()
 
-    # --- NEW CSV HELP SECTION ---
     st.markdown("---")
     with st.expander("📊 CSV Log Guide"):
         st.markdown("""
         **Column Meanings:**
         * **ID:** The unique Antenati Image ID.
         * **Type:** Birth, Marriage, Death, etc.
-        * **Subject:** The primary person in the record.
-        * **Date:** When the event was recorded.
-        * **Father/Mother:** Parents (includes maiden names).
-        * **Town:** Location of the record.
-        * **Notes:** Marginalia (marriages, deaths) or age/occupation details.
+        * **Subject:** The primary person.
+        * **Date:** Event date.
+        * **Parents:** Names + Maiden Names.
+        * **Town:** Archive location.
+        * **Notes:** Marginalia & ages.
+        * **Source URL:** Direct link to Antenati.
         """)
 
 # --- MAIN UI ---
 st.title("🏛️ Antenati Downloader & AI Translator")
 
 st.markdown(f"""
-💡 **How to use:** Paste a **Full URL** (recommended for best metadata) or an **Image ID**. <br>
+💡 **How to use:** Paste a **Full URL** (recommended) or an **Image ID**. <br>
+🔗 **Quick Link:** Pass parameters in the browser bar using `?url=FULL_URL` or `?image_id=ID`. <br>
 **Example URL:** https://antenati.cultura.gov.it/ark:/12657/an_ua264421/LzPr8VJ <br>
 **Example ID:** LzPr8VJ
 """, unsafe_allow_html=True)
@@ -162,8 +177,11 @@ if "GEMINI_API_KEY" in st.secrets:
     model = genai.GenerativeModel(CHOSEN_MODEL)
     
     params = st.query_params
-    default_id = params.get("image_id", "")
-    raw_input = st.text_input("Paste Antenati URL or Image ID:", value=default_id)
+    url_param = params.get("url", "")
+    id_param = params.get("image_id", "")
+    initial_value = url_param if url_param else id_param
+    
+    raw_input = st.text_input("Paste Antenati URL or Image ID:", value=initial_value)
     input_id = raw_input.strip().split('/')[-1] if "/" in raw_input else raw_input.strip()
 
     if input_id:
@@ -174,8 +192,16 @@ if "GEMINI_API_KEY" in st.secrets:
             record_meta = get_antenati_metadata(raw_input if "http" in raw_input else input_id)
             img_data = get_stitched_image(input_id)
             
-            st.download_button("📥 Download JPG", img_data, f"{input_id}.jpg", "image/jpeg")
-            
+            # Action Row
+            col1, col2 = st.columns([1, 4])
+            with col1:
+                st.download_button("📥 Download JPG", img_data, f"{input_id}.jpg", "image/jpeg")
+            with col2:
+                if "http" in raw_input:
+                    permalink = f"{st.get_option('server.baseUrlPath') or ''}?url={raw_input}"
+                    st.code(permalink, language="text")
+                    st.caption("🔗 Shareable Permalink for this URL")
+
             status_area = st.empty()
             status_area.info(f"⏳ AI is analyzing record: {input_id}. Results will appear **below the image** once completed...")
 
@@ -190,15 +216,14 @@ if "GEMINI_API_KEY" in st.secrets:
             st.subheader("📝 AI Findings")
             st.write(display_text)
             
-            csv_row = format_csv_row(analysis_text, input_id)
+            # Updated CSV row logic
+            csv_row = format_csv_row(analysis_text, input_id, raw_input)
             if csv_row:
                 st.markdown("---")
                 st.subheader("📊 Research Log Entry (CSV)")
-                st.markdown("""
-                **Recommended Spreadsheet Headers:** `ID`, `Record Type`, `Subject`, `Date`, `Father`, `Mother`, `Town`, `Notes`
-                """)
+                st.markdown("""**Recommended Headers:** `ID`, `Type`, `Subject`, `Date`, `Father`, `Mother`, `Town`, `Notes`, `Source URL`""")
                 st.code(csv_row, language="csv")
-                st.caption("☝️ Use the copy button in the top right of the code block above to copy the row for your log.")
+                st.caption("☝️ Copy the row above for your log.")
             
             status_area.success(f"✅ Analysis complete. [View Findings](#findings)")
 
