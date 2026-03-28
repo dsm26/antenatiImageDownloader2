@@ -18,7 +18,7 @@ st.title("🏛️ Antenati AI Downloader & Translator")
 # Grab ID from URL
 query_params = st.query_params
 url_id = query_params.get("image_id", "")
-image_id = st.text_input("Enter IIIF Image ID", value=url_id)
+image_id = st.text_input("Enter IIIF Image ID (for example, LzPr8VJ)", value=url_id)
 
 if image_id:
     st.info(f"Stitching image: {image_id}...")
