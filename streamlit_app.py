@@ -162,15 +162,14 @@ if "GEMINI_API_KEY" in st.secrets:
             
             st.download_button("📥 Download JPG", img_data, f"{input_id}.jpg", "image/jpeg")
             
+            # --- UPDATED STATUS MESSAGE ---
             status_area = st.empty()
-            status_area.info(f"⏳ AI is analyzing record: {input_id}...")
+            status_area.info(f"⏳ AI is analyzing record: {input_id}. Results will appear **below the image** once completed...")
 
             st.image(img_data, use_container_width=True)
             st.info(f"📍 **Archival Context:** {record_meta}")
 
             analysis_text = get_ai_analysis(img_data, record_meta, model)
-            
-            # Clean display (Removing the raw JSON from the end-user text view)
             display_text = analysis_text.split("RAW_DATA:")[0].strip()
             
             st.markdown('<div id="findings"></div>', unsafe_allow_html=True)
@@ -178,13 +177,17 @@ if "GEMINI_API_KEY" in st.secrets:
             st.subheader("📝 AI Findings")
             st.write(display_text)
             
-            # CSV Research Log Entry
+            # --- RESEARCH LOG & CSV ---
             csv_row = format_csv_row(analysis_text, input_id)
             if csv_row:
                 st.markdown("---")
                 st.subheader("📊 Research Log Entry (CSV)")
+                st.markdown("""
+                **Recommended Spreadsheet Headers:** `ID`, `Record Type`, `Subject`, `Date`, `Father`, `Mother`, `Town`, `Notes`
+                """)
+                # Standard Streamlit code block with built-in copy button
                 st.code(csv_row, language="csv")
-                st.caption("Paste this line into your Excel/Google Sheets research log.")
+                st.caption("☝️ Use the copy button in the top right of the code block above to copy the row for your log.")
             
             status_area.success(f"✅ Analysis complete. [View Findings](#findings)")
 
