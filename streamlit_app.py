@@ -35,7 +35,6 @@ def get_stitched_image(image_id):
     final_img = Image.new("RGB", (w, h))
     cols, rows = math.ceil(w / tw), math.ceil(h / th)
     
-    # Status placeholder for the top of the page
     my_bar = st.progress(0, text=f"Downloading tiles for {image_id}...")
     
     for r in range(rows):
@@ -76,8 +75,6 @@ st.markdown(f"""
 💡 **How to use:** Paste a full Antenati URL or Image ID below. The app will automatically download, stitch, and analyze the record using **{CHOSEN_MODEL}**.
 *(Shortcut: You can also pass parameters in the browser URL using `?image_id=...` or `?url=...`)*
 """)
-st.markdown(f"Example URL - https://antenati.cultura.gov.it/ark:/12657/an_ua264421/LzPr8VJ")
-st.markdown(f"Example Image ID - LzPr8VJ")
 
 # --- URL PARAMETER LOGIC ---
 params = st.query_params
@@ -105,9 +102,7 @@ if image_id:
         img_data = get_stitched_image(image_id)
 
         # 2. UI Action Bar (Buttons at the top)
-        btn_col1, btn_col2 = st.columns([1, 4])
-        with btn_col1:
-            st.download_button("📥 Download JPG", img_data, f"{image_id}.jpg", "image/jpeg")
+        st.download_button("📥 Download JPG", img_data, f"{image_id}.jpg", "image/jpeg")
         
         # 3. AI Status Message (Above image)
         status_area = st.empty()
@@ -116,17 +111,19 @@ if image_id:
         # 4. Display Image (Middle)
         st.image(img_data, use_container_width=True)
 
-        # 5. Automatic AI Analysis (Calculated but results displayed at bottom)
+        # 5. Automatic AI Analysis
         analysis_text = get_ai_analysis(img_data, model)
         
         # 6. Final Results (Bottom)
+        # We add a hidden HTML anchor here so the browser knows where to jump
+        st.markdown('<div id="findings"></div>', unsafe_allow_html=True)
         st.markdown("---")
         st.subheader("📝 AI Findings")
         st.write(analysis_text)
         st.markdown("---")
         
-        # Clear the "Processing" status once done
-        status_area.success(f"✅ Analysis complete using {CHOSEN_MODEL}.")
+        # 7. Final Success Message with Jump Link
+        status_area.success(f"✅ Analysis complete using {CHOSEN_MODEL}. [Click here to see AI Findings](#findings)")
 
     except Exception as e:
         st.error(f"Error processing {image_id}: {e}")
