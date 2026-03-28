@@ -6,7 +6,7 @@ from io import BytesIO
 from PIL import Image
 import google.generativeai as genai
 
-# --- CONFIGURATION (Change model name here only) ---
+# --- CONFIGURATION ---
 CHOSEN_MODEL = 'gemini-2.5-flash' 
 
 st.set_page_config(page_title="Antenati AI", page_icon="🧬", layout="wide")
@@ -19,22 +19,27 @@ else:
     st.error("🔑 API Key missing! Add GEMINI_API_KEY to your Streamlit Secrets.")
 
 st.title("🏛️ Antenati AI Downloader & Translator")
-st.markdown(f"💡 **How to use:** Paste a full Antenati URL or Image ID below. Then, use the AI button (powered by **{CHOSEN_MODEL}**) to transcribe and translate the record.")
+
+# Updated help message with parameter instructions
+st.markdown(f"""
+💡 **How to use:** Paste a full Antenati URL or Image ID below. Then, use the AI button (powered by **{CHOSEN_MODEL}**) to transcribe and translate the record.
+*(Shortcut: You can also pass parameters in the browser URL using `?image_id=...` or `?url=...`)*
+""")
 
 # --- URL PARAMETER LOGIC ---
-# Check for ?image_id=... or ?url=... in the browser address bar
 params = st.query_params
 default_value = ""
 
+# Prioritize 'url' parameter, then 'image_id'
 if "url" in params:
     default_value = params["url"]
 elif "image_id" in params:
     default_value = params["image_id"]
 
-# Input with logic to handle URLs or IDs (pre-filled if params exist)
+# Input field (pre-filled if params exist)
 raw_input = st.text_input("Paste Antenati URL or Image ID here:", value=default_value)
 
-# Trim whitespace AND remove trailing slashes
+# Clean input: trim whitespace and remove trailing slashes
 input_clean = raw_input.strip().rstrip('/')
 
 def get_image_id(user_input):
@@ -64,9 +69,7 @@ if image_id:
         final_img = Image.new("RGB", (w, h))
         cols, rows = math.ceil(w / tw), math.ceil(h / th)
         
-        # Progress bar for better feedback
-        progress_text = "Downloading tiles..."
-        my_bar = st.progress(0, text=progress_text)
+        my_bar = st.progress(0, text="Downloading tiles...")
         
         for r in range(rows):
             for c in range(cols):
@@ -76,33 +79,4 @@ if image_id:
                 res = requests.get(tile_url, headers=HEADERS)
                 tile_data = Image.open(BytesIO(res.content))
                 final_img.paste(tile_data, (x, y))
-            my_bar.progress((r + 1) / rows, text=f"Stitching row {r+1} of {rows}...")
-
-        buf = BytesIO()
-        final_img.save(buf, format="JPEG", quality=95)
-        img_data = buf.getvalue()
-
-        # --- UI LAYOUT ---
-        btn_col1, btn_col2 = st.columns([1, 4])
-        with btn_col1:
-            st.download_button("📥 Download JPG", img_data, f"{image_id}.jpg", "image/jpeg")
-        
-        if st.button(f"🤖 Analyze & Translate with {CHOSEN_MODEL}"):
-            with st.spinner(f"Reading cursive with {CHOSEN_MODEL}..."):
-                prompt = """
-                Analyze this 1800s Italian civil record. 
-                1. Identify the record type, primary names, and dates.
-                2. Provide a full transcription of handwritten details.
-                3. Translate the summary into clear English.
-                """
-                response = model.generate_content([prompt, {"mime_type": "image/jpeg", "data": img_data}])
-                
-                st.markdown("---")
-                st.subheader("📝 Findings")
-                st.write(response.text)
-                st.markdown("---")
-
-        st.image(img_data, use_container_width=True)
-
-    except Exception as e:
-        st.error(f"Error processing {image_id}: {e}")
+            my_bar.progress((r + 1) / rows, text=f"Stitching row {r
