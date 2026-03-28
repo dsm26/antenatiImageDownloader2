@@ -9,12 +9,9 @@ import google.generativeai as genai
 # --- CONFIGURATION ---
 CHOSEN_MODEL = 'gemini-2.5-flash' 
 CACHE_TTL = 900 
-# Broadened headers to appear more like a standard browser session
 HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
     "Referer": "https://antenati.cultura.gov.it/",
-    "Accept": "application/json, text/plain, */*",
-    "Accept-Language": "en-US,en;q=0.9",
 }
 
 st.set_page_config(page_title="Antenati Downloader & AI Translator", page_icon="🧬", layout="wide")
@@ -22,33 +19,35 @@ st.set_page_config(page_title="Antenati Downloader & AI Translator", page_icon="
 if "history" not in st.session_state:
     st.session_state.history = []
 
-# --- IMPROVED METADATA FETCHING ---
+# --- METADATA EXTRACTION ---
 @st.cache_data(show_spinner=False, ttl=CACHE_TTL)
-def get_antenati_metadata(image_id):
-    """Tries multiple endpoints to get the archival context."""
-    # Attempt 1: The IIIF Manifest (Most detailed)
+def get_antenati_metadata(input_str):
+    image_id = input_str.strip().split('/')[-1] if "/" in input_str else input_str.strip()
+    
+    # Strategy 1: The IIIF Manifest (Best data)
     try:
         manifest_url = f"https://antenati.cultura.gov.it/iiif/2/{image_id}/manifest"
-        resp = requests.get(manifest_url, headers=HEADERS, timeout=7)
+        resp = requests.get(manifest_url, headers=HEADERS, timeout=5)
         if resp.status_code == 200:
-            data = resp.json()
-            return data.get("label", "Italian Civil Record")
+            label = resp.json().get("label", "")
+            if label: return label
     except:
         pass
 
-    # Attempt 2: Fallback to the Info.json (Least restrictive)
-    try:
-        info_url = f"https://iiif-antenati.cultura.gov.it/iiif/2/{image_id}/info.json"
-        resp = requests.get(info_url, headers=HEADERS, timeout=5)
-        if resp.status_code == 200:
-            # Info.json doesn't have names, but we can verify it exists
-            return "Italian Civil Record (Image Verified)"
-    except:
-        pass
-        
-    return "Italian Civil Record (Context unavailable)"
+    # Strategy 2: Page Scraping (Best fallback)
+    if "antenati.cultura.gov.it" in input_str:
+        try:
+            resp = requests.get(input_str, headers=HEADERS, timeout=5)
+            if resp.status_code == 200:
+                title_match = re.search(r'<title>(.*?)</title>', resp.text)
+                if title_match:
+                    return title_match.group(1).replace(" - Antenati", "").strip()
+        except:
+            pass
 
-# --- CACHED DOWNLOAD LOGIC ---
+    return "Italian Civil Record (Metadata hidden by server)"
+
+# --- DOWNLOAD LOGIC ---
 @st.cache_data(show_spinner=False, ttl=CACHE_TTL)
 def get_stitched_image(image_id):
     base_url = f"https://iiif-antenati.cultura.gov.it/iiif/2/{image_id}"
@@ -57,8 +56,7 @@ def get_stitched_image(image_id):
     info = info_resp.json()
     
     w, h = info["width"], info["height"]
-    tw = info["tiles"][0]["width"]
-    th = info["tiles"][0].get("height", tw)
+    tw, th = info["tiles"][0]["width"], info.get("tiles")[0].get("height", info["tiles"][0]["width"])
     
     final_img = Image.new("RGB", (w, h))
     cols, rows = math.ceil(w / tw), math.ceil(h / th)
@@ -82,28 +80,24 @@ def get_stitched_image(image_id):
     final_img.save(buf, format="JPEG", quality=95)
     return buf.getvalue()
 
-# --- CACHED AI LOGIC ---
+# --- AI ANALYSIS ---
 @st.cache_data(show_spinner=False, ttl=CACHE_TTL)
 def get_ai_analysis(img_bytes, metadata_context, _model_instance):
     prompt = f"""
-    CONTEXT FROM ARCHIVE: {metadata_context}
-    TASK: Analyze this handwritten 19th-century Italian civil record. 
-    1. Identify the record type, primary names (subject, parents), and specific dates.
-    2. Provide a full transcription of the handwritten names.
-    3. Translate the summary into clear English.
+    ARCHIVAL CONTEXT: {metadata_context}
+    Analyze this 19th-century Italian civil record.
+    1. Record Type, Primary Names, Dates.
+    2. Transcription of handwritten names/marginalia.
+    3. English Summary.
     """
-    response = _model_instance.generate_content([
-        prompt, 
-        {"mime_type": "image/jpeg", "data": img_bytes}
-    ])
+    response = _model_instance.generate_content([prompt, {"mime_type": "image/jpeg", "data": img_bytes}])
     return response.text
 
 # --- SIDEBAR ---
 with st.sidebar:
     st.header("⚙️ App Management")
     st.write(f"**Model:** {CHOSEN_MODEL}")
-    st.write(f"**Cache TTL:** {CACHE_TTL // 60} Minutes")
-    
+    st.write(f"**Cache TTL:** 15m")
     if st.button("🗑️ Clear Cache & History"):
         st.cache_data.clear()
         st.session_state.history = []
@@ -120,8 +114,10 @@ with st.sidebar:
 # --- MAIN UI ---
 st.title("🏛️ Antenati Downloader & AI Translator")
 
+# RESTORED EXAMPLES
 st.markdown(f"""
 💡 **How to use:** Paste a full Antenati URL or Image ID below. <br>
+**Example URL:** https://antenati.cultura.gov.it/ark:/12657/an_ua264421/LzPr8VJ <br>
 **Example ID:** LzPr8VJ
 """, unsafe_allow_html=True)
 
@@ -139,19 +135,24 @@ if "GEMINI_API_KEY" in st.secrets:
             st.session_state.history.append(input_id)
 
         try:
-            record_meta = get_antenati_metadata(input_id)
+            # Metadata Context
+            record_meta = get_antenati_metadata(raw_input if "http" in raw_input else input_id)
+            
+            # Download Image
             img_data = get_stitched_image(input_id)
             
             st.download_button("📥 Download JPG", img_data, f"{input_id}.jpg", "image/jpeg")
             
+            # Restore Status Area
             status_area = st.empty()
-            status_area.info(f"⏳ AI is analyzing with {CHOSEN_MODEL}. Results will appear below...")
+            status_area.info(f"⏳ AI is analyzing record: {input_id}...")
 
             st.image(img_data, use_container_width=True)
             
-            # Metadata Display Box
-            st.info(f"**Archival Context:** {record_meta}")
+            # Metadata Box
+            st.info(f"📍 **Archival Context:** {record_meta}")
 
+            # AI Logic
             analysis_text = get_ai_analysis(img_data, record_meta, model)
             
             st.markdown('<div id="findings"></div>', unsafe_allow_html=True)
@@ -160,9 +161,10 @@ if "GEMINI_API_KEY" in st.secrets:
             st.write(analysis_text)
             st.markdown("---")
             
-            status_area.success(f"✅ Analysis complete. [Click here to jump to AI Findings](#findings)")
+            # Green Success Box Restored
+            status_area.success(f"✅ Analysis complete. [View Findings](#findings)")
 
         except Exception as e:
-            st.error(f"Error processing record: {e}")
+            st.error(f"Error: {e}")
 else:
-    st.error("🔑 API Key missing! Add GEMINI_API_KEY to your Streamlit Secrets.")
+    st.error("🔑 API Key missing in Secrets.")
