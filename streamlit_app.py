@@ -19,10 +19,7 @@ if "history" not in st.session_state:
 # --- METADATA FETCHING ---
 @st.cache_data(show_spinner=False, ttl=CACHE_TTL)
 def get_antenati_metadata(image_id):
-    """Fetches key archival details from the IIIF Manifest with proper headers."""
     try:
-        # Note: Some ARK IDs require a slightly different manifest path. 
-        # This is the most common direct IIIF manifest endpoint.
         manifest_url = f"https://antenati.cultura.gov.it/iiif/2/{image_id}/manifest"
         resp = requests.get(manifest_url, headers=HEADERS, timeout=10)
         if resp.status_code == 200:
@@ -36,7 +33,6 @@ def get_antenati_metadata(image_id):
 @st.cache_data(show_spinner=False, ttl=CACHE_TTL)
 def get_stitched_image(image_id):
     base_url = f"https://iiif-antenati.cultura.gov.it/iiif/2/{image_id}"
-    
     info_resp = requests.get(f"{base_url}/info.json", headers=HEADERS)
     info_resp.raise_for_status()
     info = info_resp.json()
@@ -49,9 +45,7 @@ def get_stitched_image(image_id):
     cols, rows = math.ceil(w / tw), math.ceil(h / th)
     total_tiles = rows * cols
     
-    # Improved progress bar display
     progress_placeholder = st.empty()
-    
     tile_count = 0
     for r in range(rows):
         for c in range(cols):
@@ -59,15 +53,12 @@ def get_stitched_image(image_id):
             x, y = c * tw, r * th
             tile_w, tile_h = min(tw, w - x), min(th, h - y)
             tile_url = f"{base_url}/{x},{y},{tile_w},{tile_h}/full/0/default.jpg"
-            
-            # Update progress text
             progress_placeholder.progress(tile_count / total_tiles, text=f"📥 Downloading tile {tile_count} of {total_tiles}...")
-            
             res = requests.get(tile_url, headers=HEADERS)
             tile_data = Image.open(BytesIO(res.content))
             final_img.paste(tile_data, (x, y))
     
-    progress_placeholder.empty() # Clear bar when done
+    progress_placeholder.empty()
     buf = BytesIO()
     final_img.save(buf, format="JPEG", quality=95)
     return buf.getvalue()
@@ -129,27 +120,31 @@ if "GEMINI_API_KEY" in st.secrets:
             st.session_state.history.append(input_id)
 
         try:
-            # 1. Fetch Metadata (Context)
             record_meta = get_antenati_metadata(input_id)
-            
-            # 2. Get the Image
             img_data = get_stitched_image(input_id)
             
-            # 3. Actions & Display
+            # Action Bar
             st.download_button("📥 Download JPG", img_data, f"{input_id}.jpg", "image/jpeg")
-            st.image(img_data, use_container_width=True)
+            
+            # Status Area (The "Green Box" logic)
+            status_area = st.empty()
+            status_area.info(f"⏳ AI is analyzing with {CHOSEN_MODEL}. Results will appear below...")
 
-            # 4. Metadata Display (Now fetching correctly with headers)
+            st.image(img_data, use_container_width=True)
             st.info(f"**Archival Context:** {record_meta}")
 
-            # 5. AI Translation
-            with st.spinner("🤖 AI is analyzing the document..."):
-                analysis_text = get_ai_analysis(img_data, record_meta, model)
+            # AI Analysis
+            analysis_text = get_ai_analysis(img_data, record_meta, model)
             
+            # Final Results Display
+            st.markdown('<div id="findings"></div>', unsafe_allow_html=True)
             st.markdown("---")
             st.subheader("📝 AI Findings")
             st.write(analysis_text)
             st.markdown("---")
+            
+            # Restore the Green Success Box
+            status_area.success(f"✅ Analysis complete. [Click here to jump to AI Findings](#findings)")
 
         except Exception as e:
             st.error(f"Error processing record: {e}")
