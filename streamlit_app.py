@@ -134,6 +134,20 @@ with st.sidebar:
                 st.query_params["image_id"] = h_id
                 st.rerun()
 
+    # --- NEW CSV HELP SECTION ---
+    st.markdown("---")
+    with st.expander("📊 CSV Log Guide"):
+        st.markdown("""
+        **Column Meanings:**
+        * **ID:** The unique Antenati Image ID.
+        * **Type:** Birth, Marriage, Death, etc.
+        * **Subject:** The primary person in the record.
+        * **Date:** When the event was recorded.
+        * **Father/Mother:** Parents (includes maiden names).
+        * **Town:** Location of the record.
+        * **Notes:** Marginalia (marriages, deaths) or age/occupation details.
+        """)
+
 # --- MAIN UI ---
 st.title("🏛️ Antenati Downloader & AI Translator")
 
@@ -162,7 +176,6 @@ if "GEMINI_API_KEY" in st.secrets:
             
             st.download_button("📥 Download JPG", img_data, f"{input_id}.jpg", "image/jpeg")
             
-            # --- UPDATED STATUS MESSAGE ---
             status_area = st.empty()
             status_area.info(f"⏳ AI is analyzing record: {input_id}. Results will appear **below the image** once completed...")
 
@@ -177,7 +190,6 @@ if "GEMINI_API_KEY" in st.secrets:
             st.subheader("📝 AI Findings")
             st.write(display_text)
             
-            # --- RESEARCH LOG & CSV ---
             csv_row = format_csv_row(analysis_text, input_id)
             if csv_row:
                 st.markdown("---")
@@ -185,7 +197,6 @@ if "GEMINI_API_KEY" in st.secrets:
                 st.markdown("""
                 **Recommended Spreadsheet Headers:** `ID`, `Record Type`, `Subject`, `Date`, `Father`, `Mother`, `Town`, `Notes`
                 """)
-                # Standard Streamlit code block with built-in copy button
                 st.code(csv_row, language="csv")
                 st.caption("☝️ Use the copy button in the top right of the code block above to copy the row for your log.")
             
