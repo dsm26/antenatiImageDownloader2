@@ -8,19 +8,30 @@ import google.generativeai as genai
 
 # --- CONFIGURATION ---
 CHOSEN_MODEL = 'gemini-2.5-flash' 
-CACHE_TTL = 900  # 15 minutes
+CACHE_TTL = 900 
 
-# Updated browser tab title
 st.set_page_config(page_title="Antenati Downloader & AI Translator", page_icon="🧬", layout="wide")
 
-# Setup Gemini
-if "GEMINI_API_KEY" in st.secrets:
-    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-    model = genai.GenerativeModel(CHOSEN_MODEL)
-else:
-    st.error("🔑 API Key missing! Add GEMINI_API_KEY to your Streamlit Secrets.")
+# Initialize Session History
+if "history" not in st.session_state:
+    st.session_state.history = []
 
-# --- CACHED DOWNLOAD LOGIC ---
+# --- METADATA & STITCHING LOGIC ---
+@st.cache_data(show_spinner=False, ttl=CACHE_TTL)
+def get_antenati_metadata(image_id):
+    """Fetches archival context from the Antenati IIIF Manifest."""
+    try:
+        # We derive the manifest ID by looking at the parent unit ID
+        # Note: This is a simplified heuristic based on Antenati's current ARK structure
+        manifest_url = f"https://antenati.cultura.gov.it/iiif/2/{image_id}/manifest"
+        resp = requests.get(manifest_url, timeout=5)
+        if resp.status_code == 200:
+            data = resp.json()
+            return data.get("label", "Unknown Italian Record")
+    except:
+        return "Italian Civil Record"
+    return "Italian Civil Record"
+
 @st.cache_data(show_spinner=False, ttl=CACHE_TTL)
 def get_stitched_image(image_id):
     HEADERS = {"User-Agent": "Mozilla/5.0", "Referer": "https://antenati.cultura.gov.it/"}
@@ -37,7 +48,7 @@ def get_stitched_image(image_id):
     final_img = Image.new("RGB", (w, h))
     cols, rows = math.ceil(w / tw), math.ceil(h / th)
     
-    my_bar = st.progress(0, text=f"Downloading tiles for {image_id}...")
+    my_bar = st.progress(0, text=f"📥 Downloading high-res tiles...")
     
     for r in range(rows):
         for c in range(cols):
@@ -47,20 +58,20 @@ def get_stitched_image(image_id):
             res = requests.get(tile_url, headers=HEADERS)
             tile_data = Image.open(BytesIO(res.content))
             final_img.paste(tile_data, (x, y))
-        my_bar.progress((r + 1) / rows, text=f"Stitching row {r+1} of {rows}...")
+        my_bar.progress((r + 1) / rows)
     
     my_bar.empty()
-    
     buf = BytesIO()
     final_img.save(buf, format="JPEG", quality=95)
     return buf.getvalue()
 
-# --- CACHED AI LOGIC ---
 @st.cache_data(show_spinner=False, ttl=CACHE_TTL)
-def get_ai_analysis(img_bytes, _model_instance):
-    prompt = """
-    Analyze this 1800s Italian civil record. 
-    1. Identify the record type, primary names, and dates.
+def get_ai_analysis(img_bytes, metadata_context, _model_instance):
+    prompt = f"""
+    CONTEXT: This image is from the following archival collection: {metadata_context}
+    
+    TASK: Analyze this 19th-century Italian civil record.
+    1. Identify the record type (Birth/Marriage/Death), primary names, and dates.
     2. Provide a full transcription of handwritten details.
     3. Translate the summary into clear English.
     """
@@ -70,65 +81,69 @@ def get_ai_analysis(img_bytes, _model_instance):
     ])
     return response.text
 
-# --- SIDEBAR: CACHE MANAGEMENT ---
+# --- SIDEBAR: HISTORY & MANAGEMENT ---
 with st.sidebar:
     st.header("⚙️ App Management")
     st.write(f"**Model:** {CHOSEN_MODEL}")
-    st.write(f"**Cache TTL:** 15 Minutes")
     
-    if st.button("🗑️ Clear App Cache"):
+    if st.button("🗑️ Clear Cache"):
         st.cache_data.clear()
-        st.success("Cache cleared!")
+        st.session_state.history = []
         st.rerun()
 
-# --- UI START ---
-# Updated main page title
+    if st.session_state.history:
+        st.markdown("---")
+        st.header("🕒 Recent History")
+        for h_id in reversed(st.session_state.history[-5:]): # Show last 5
+            if st.button(f"📄 {h_id}", key=f"btn_{h_id}"):
+                st.query_params["image_id"] = h_id
+                st.rerun()
+
+# --- MAIN UI ---
 st.title("🏛️ Antenati Downloader & AI Translator")
 
 st.markdown(f"""
 💡 **How to use:** Paste a full Antenati URL or Image ID below. <br>
-**Example URL:** https://antenati.cultura.gov.it/ark:/12657/an_ua264421/LzPr8VJ <br>
-**Example Image ID:** LzPr8VJ
+**Example ID:** LzPr8VJ
 """, unsafe_allow_html=True)
 
-# --- URL PARAMETER LOGIC ---
-params = st.query_params
-default_value = ""
-if "url" in params:
-    default_value = params["url"]
-elif "image_id" in params:
-    default_value = params["image_id"]
+# Setup Gemini
+if "GEMINI_API_KEY" in st.secrets:
+    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+    model = genai.GenerativeModel(CHOSEN_MODEL)
+    
+    # URL Param Logic
+    params = st.query_params
+    default_val = params.get("image_id", "")
+    
+    raw_input = st.text_input("Paste Antenati URL or Image ID:", value=default_val)
+    input_clean = raw_input.strip().split('/')[-1] if "/" in raw_input else raw_input.strip()
 
-raw_input = st.text_input("Paste Antenati URL or Image ID here:", value=default_value)
-input_clean = raw_input.strip().rstrip('/')
+    if input_clean:
+        if input_clean not in st.session_state.history:
+            st.session_state.history.append(input_clean)
+            
+        try:
+            # 1. Fetch Metadata context
+            meta = get_antenati_metadata(input_clean)
+            st.caption(f"Archival Context: {meta}")
 
-def get_image_id(user_input):
-    if "antenati.cultura.gov.it" in user_input:
-        match = re.search(r'([^/]+)$', user_input)
-        return match.group(1) if match else user_input
-    return user_input
+            # 2. Get Image
+            img_data = get_stitched_image(input_clean)
+            st.download_button("📥 Download JPG", img_data, f"{input_clean}.jpg", "image/jpeg")
+            
+            # 3. UI Display
+            st.image(img_data, use_container_width=True)
 
-image_id = get_image_id(input_clean)
+            # 4. AI Analysis with Context
+            with st.spinner("🤖 AI is reading the handwriting..."):
+                analysis = get_ai_analysis(img_data, meta, model)
+            
+            st.markdown("---")
+            st.subheader("📝 AI Findings")
+            st.write(analysis)
 
-if image_id:
-    try:
-        img_data = get_stitched_image(image_id)
-        st.download_button("📥 Download JPG", img_data, f"{image_id}.jpg", "image/jpeg")
-        
-        status_area = st.empty()
-        status_area.info(f"⏳ AI is transcribing and translating with {CHOSEN_MODEL}. Results will appear below the image...")
-
-        st.image(img_data, use_container_width=True)
-
-        analysis_text = get_ai_analysis(img_data, model)
-        
-        st.markdown('<div id="findings"></div>', unsafe_allow_html=True)
-        st.markdown("---")
-        st.subheader("📝 AI Findings")
-        st.write(analysis_text)
-        st.markdown("---")
-        
-        status_area.success(f"✅ Analysis complete using {CHOSEN_MODEL}. [Click here to see AI Findings](#findings)")
-
-    except Exception as e:
-        st.error(f"Error processing {image_id}: {e}")
+        except Exception as e:
+            st.error(f"Error: {e}")
+else:
+    st.error("🔑 Please add your GEMINI_API_KEY to Secrets.")
