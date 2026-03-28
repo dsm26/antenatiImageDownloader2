@@ -79,4 +79,33 @@ if image_id:
                 res = requests.get(tile_url, headers=HEADERS)
                 tile_data = Image.open(BytesIO(res.content))
                 final_img.paste(tile_data, (x, y))
-            my_bar.progress((r + 1) / rows, text=f"Stitching row {r
+            my_bar.progress((r + 1) / rows, text=f"Stitching row {r+1} of {rows}...")
+
+        buf = BytesIO()
+        final_img.save(buf, format="JPEG", quality=95)
+        img_data = buf.getvalue()
+
+        # --- UI LAYOUT ---
+        btn_col1, btn_col2 = st.columns([1, 4])
+        with btn_col1:
+            st.download_button("📥 Download JPG", img_data, f"{image_id}.jpg", "image/jpeg")
+        
+        if st.button(f"🤖 Analyze & Translate with {CHOSEN_MODEL}"):
+            with st.spinner(f"Reading cursive with {CHOSEN_MODEL}..."):
+                prompt = """
+                Analyze this 1800s Italian civil record. 
+                1. Identify the record type, primary names, and dates.
+                2. Provide a full transcription of handwritten details.
+                3. Translate the summary into clear English.
+                """
+                response = model.generate_content([prompt, {"mime_type": "image/jpeg", "data": img_data}])
+                
+                st.markdown("---")
+                st.subheader("📝 Findings")
+                st.write(response.text)
+                st.markdown("---")
+
+        st.image(img_data, use_container_width=True)
+
+    except Exception as e:
+        st.error(f"Error processing {image_id}: {e}")
