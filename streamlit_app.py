@@ -7,7 +7,7 @@ from PIL import Image
 import google.generativeai as genai
 
 # --- CONFIGURATION (Change model name here only) ---
-CHOSEN_MODEL = 'gemini-1.5-flash' 
+CHOSEN_MODEL = 'gemini-2.5-flash' 
 
 st.set_page_config(page_title="Antenati AI", page_icon="🧬", layout="wide")
 
@@ -20,6 +20,8 @@ else:
 
 st.title("🏛️ Antenati AI Downloader & Translator")
 st.markdown(f"💡 **How to use:** Paste a full Antenati URL or Image ID below. Then, use the AI button (powered by **{CHOSEN_MODEL}**) to transcribe and translate the record.")
+st.markdown(f"Example URL: https://antenati.cultura.gov.it/ark:/12657/an_ua264421/LzPr8VJ")
+st.markdown(f"Example Image ID: LzPr8VJ)
 
 # Input with logic to handle URLs or IDs
 raw_input = st.text_input("Paste Antenati URL or Image ID here:")
