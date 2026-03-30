@@ -166,7 +166,6 @@ with st.sidebar:
         help="If the app's shared quota is reached, you can use your own key. [Create a free API key here](https://aistudio.google.com/api-keys)."
     )
     
-    st.write(f"**Default model:** {CHOSEN_MODEL}")
     st.write(f"**Cache TTL:** {CACHE_TTL//60}m")
     if st.button("🗑️ Clear Cache & History"):
         st.cache_data.clear()
