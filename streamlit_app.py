@@ -138,7 +138,7 @@ def format_csv_row(data, image_id, source_input):
 # --- SIDEBAR ---
 with st.sidebar:
     st.header("⚙️ App Management")
-    st.write(f"**Model:** {CHOSEN_MODEL}")
+    st.write(f"**Default model:** {CHOSEN_MODEL}")
     st.write(f"**Cache TTL:** {CACHE_TTL//60}m")
     if st.button("🗑️ Clear Cache & History"):
         st.cache_data.clear()
@@ -181,7 +181,6 @@ st.markdown(f"""
 
 if "GEMINI_API_KEY" in st.secrets:
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-    model = genai.GenerativeModel(CHOSEN_MODEL)
     
     params = st.query_params
     url_param = params.get("url", "")
@@ -213,13 +212,27 @@ if "GEMINI_API_KEY" in st.secrets:
             st.image(img_data, use_container_width=True)
             st.info(f"📍 **Archival Context:** {record_meta}")
 
-            # --- MANUAL TRANSLATION BUTTON ---
+            # --- MANUAL TRANSLATION BUTTON & MODEL SELECTOR ---
             st.markdown("---")
-            if st.button(f"✨ Translate with {CHOSEN_MODEL}", type="primary", use_container_width=True):
+            
+            model_col, btn_col = st.columns([2, 1])
+            with model_col:
+                selected_model_name = st.selectbox(
+                    "AI Model:",
+                    options=["gemini-3.1-flash-lite-preview", "2.5-flash", "2.5-flash-lite", "3.1-flash-lite"],
+                    index=0
+                )
+            
+            with btn_col:
+                st.write(" ") # Spacer to align with selectbox
+                translate_clicked = st.button("Translate with AI", type="primary")
+
+            if translate_clicked:
+                current_model = genai.GenerativeModel(selected_model_name)
                 status_area.info(f"⏳ AI is analyzing record: {input_id}. Results will appear **below the image** once completed...")
                 
                 try:
-                    analysis_text = get_ai_analysis(img_data, record_meta, model)
+                    analysis_text = get_ai_analysis(img_data, record_meta, current_model)
                     display_text = analysis_text.split("RAW_DATA:")[0].strip()
                     raw_data = extract_raw_data(analysis_text)
                     
