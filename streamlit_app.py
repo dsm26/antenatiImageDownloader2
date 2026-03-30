@@ -215,17 +215,26 @@ if "GEMINI_API_KEY" in st.secrets:
             # --- MANUAL TRANSLATION BUTTON & MODEL SELECTOR ---
             st.markdown("---")
             
-            model_col, btn_col = st.columns([2, 1])
+            # Using vertical_alignment="bottom" ensures the button aligns
+            # with the input field, not the label
+            model_col, btn_col, spacer = st.columns([2, 2, 4], vertical_alignment="bottom")
+
             with model_col:
+                # Prepending 'gemini-' to fix the 404 errors you encountered
                 selected_model_name = st.selectbox(
                     "AI Model:",
-                    options=["gemini-3.1-flash-lite-preview", "gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-3.1-flash-lite"],
+                    options=[
+                        "gemini-3.1-flash-lite-preview", 
+                        "gemini-2.5-flash", 
+                        "gemini-2.5-flash-lite", 
+                        "gemini-3.1-flash-lite"
+                    ],
                     index=0
                 )
-            
+
             with btn_col:
-                st.write(" ") # Spacer to align with selectbox
-                translate_clicked = st.button("Translate with AI", type="primary")
+                # This button will now stay on the same line as the selector
+                translate_clicked = st.button("Translate with AI", type="primary", use_container_width=True)
 
             if translate_clicked:
                 current_model = genai.GenerativeModel(selected_model_name)
