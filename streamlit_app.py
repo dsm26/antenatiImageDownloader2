@@ -233,7 +233,6 @@ if final_api_key:
                     st.code(permalink, language="text")
                     st.caption("🔗 Shareable Permalink for this URL")
 
-            status_area = st.empty()
             st.image(img_data, use_container_width=True)
             st.info(f"📍 **Archival Context:** {record_meta}")
 
@@ -261,11 +260,12 @@ if final_api_key:
                 # This button will now stay on the same line as the selector
                 translate_clicked = st.button("Translate with AI", type="primary", use_container_width=True)
 
+            # AI status area is placed here so it appears below the button but above the findings
+            status_area = st.empty()
+
             if translate_clicked:
-                # Ensure the configuration is set to the current chosen key before creating the model
-                genai.configure(api_key=final_api_key)
                 current_model = genai.GenerativeModel(selected_model_name)
-                status_area.info(f"⏳ AI is analyzing record: {input_id}. Results will appear **below the image** once completed...")
+                status_area.info(f"⏳ AI is analyzing record: {input_id}. Results will appear **below** once completed...")
                 
                 try:
                     analysis_text = get_ai_analysis(img_data, record_meta, current_model)
@@ -309,4 +309,4 @@ if final_api_key:
         except Exception as e:
             st.error(f"Error fetching record: {e}")
 else:
-    st.error("🔑 API Key missing. Please enter your own Gemini API Key in the sidebar or ensure the app administrator has configured secrets.")
+    st.error("🔑 API Key missing. Please provide a key in the sidebar or check Streamlit Secrets.")
