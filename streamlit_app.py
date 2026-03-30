@@ -163,6 +163,7 @@ with st.sidebar:
     user_api_key = st.text_input(
         "🔑 Personal Gemini API Key (Optional)", 
         type="password", 
+        placeholder="Paste your key here...",
         help="If the app's shared quota is reached, you can use your own key. [Create a free API key here](https://aistudio.google.com/api-keys)."
     )
     
@@ -264,6 +265,12 @@ if final_api_key:
             with btn_col:
                 # This button will now stay on the same line as the selector
                 translate_clicked = st.button("Translate with AI", type="primary", use_container_width=True)
+
+            with key_status_col:
+                if user_api_key:
+                    st.write("using your personal Gemini API key")
+                else:
+                    st.write("using default Gemini API key")
 
             # AI status area is placed here so it appears below the button but above the findings
             status_area = st.empty()
