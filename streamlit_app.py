@@ -155,7 +155,7 @@ with st.sidebar:
     st.header("⚙️ App Management")
     
     # Optional API Key Input
-    user_api_key = st.text_input("🔑 Personal Gemini API Key (Optional)", type="password", help="If provided, this key will be used instead of the app default.")
+    user_api_key = st.text_input("🔑 Personal Gemini API Key (Optional)", type="password", help="If the app's shared quota is reached, you can use your own key. [Create a free API key here](https://aistudio.google.com/api-keys).")
     
     st.write(f"**Default model:** {CHOSEN_MODEL}")
     st.write(f"**Cache TTL:** {CACHE_TTL//60}m")
