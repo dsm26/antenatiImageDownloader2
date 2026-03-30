@@ -194,6 +194,7 @@ with st.sidebar:
         """)
 
     st.markdown("---")
+    st.markdown("📖 [Learn more about this app](https://community.familysearch.org/en/discussion/179735/antenati-full-sized-image)")
     st.caption(get_git_info())
 
 # --- MAIN UI ---
