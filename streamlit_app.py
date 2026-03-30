@@ -224,14 +224,9 @@ if final_api_key:
             img_data = get_stitched_image(input_id)
             
             # Action Row
-            col1, col2 = st.columns([1, 4])
+            col1, spacer = st.columns([2, 8])
             with col1:
-                st.download_button("📥 Download JPG", img_data, f"{input_id}.jpg", "image/jpeg")
-            with col2:
-                if "http" in raw_input:
-                    permalink = f"{st.get_option('server.baseUrlPath') or ''}?url={raw_input}"
-                    st.code(permalink, language="text")
-                    st.caption("🔗 Shareable Permalink for this URL")
+                st.download_button("📥 Download JPG", img_data, f"{input_id}.jpg", "image/jpeg", use_container_width=True)
 
             st.image(img_data, use_container_width=True)
             st.info(f"📍 **Archival Context:** {record_meta}")
