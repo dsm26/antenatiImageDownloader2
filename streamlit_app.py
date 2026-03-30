@@ -18,6 +18,30 @@ HEADERS = {
     "Referer": "https://antenati.cultura.gov.it/",
 }
 
+# --- AI PROMPT CONFIGURATION ---
+DEFAULT_PROMPT = """
+    ARCHIVAL CONTEXT: {metadata_context}
+    
+    TASK: Analyze this Italian genealogical image (Civil, Church, or Supplemental/Processetti). It may be a singular formal record or an Index Page (Indice) listing multiple individuals.
+    
+    1. CATEGORIZE: Is this a singular formal record or an Index/List?
+    
+    2. IF SINGULAR: Identify Record Type (e.g., Birth, Marriage, Death, Processetti, Allegati, Parish/Latin record), Primary Subject Name, Date of Event, Father's Name, Mother's Name (including maiden name), and Town. 
+       - Extract any mentioned Occupation(s) for the parents or subject.
+       - Extract any specific Street Address, House Number, or Parish Name mentioned.
+    
+    3. IF INDEX/LIST: Identify the type of index (e.g., Births 1850). Provide a NUMBERED LIST of every name visible on the page. For each name, include the associated Year, Record Number, or Page Number if shown.
+    
+    4. TRANSCRIPTION: Provide a full transcription of names and any marginalia (noting if the record is in Latin or Italian).
+    
+    5. SUMMARY: Provide an English Summary of the key findings, including any supplemental documents found in the file (especially for Processetti).
+    
+    IMPORTANT: After your summary, provide a single line starting with "RAW_DATA: " followed by a JSON block exactly like this:
+    RAW_DATA: {{"type": "...", "subject": "...", "date": "...", "father": "...", "mother": "...", "town": "...", "occupation": "...", "address": "...", "notes": "..."}}
+    
+    NOTE FOR INDEX PAGES: In the RAW_DATA JSON, put "Index/List" in 'type' and a brief range (e.g., "Index A-M") in 'subject'. Put the full numbered list of names from step 3 into the 'notes' field so it is preserved in the research log.
+    """
+
 st.set_page_config(page_title="Antenati Downloader & AI Translator", page_icon="🧬", layout="wide")
 
 if "history" not in st.session_state:
@@ -98,28 +122,8 @@ def get_stitched_image(image_id):
 # --- AI ANALYSIS ---
 @st.cache_data(show_spinner=False, ttl=CACHE_TTL)
 def get_ai_analysis(img_bytes, metadata_context, _model_instance):
-    prompt = f"""
-    ARCHIVAL CONTEXT: {metadata_context}
-    
-    TASK: Analyze this Italian genealogical image (Civil, Church, or Supplemental/Processetti). It may be a singular formal record or an Index Page (Indice) listing multiple individuals.
-    
-    1. CATEGORIZE: Is this a singular formal record or an Index/List?
-    
-    2. IF SINGULAR: Identify Record Type (e.g., Birth, Marriage, Death, Processetti, Allegati, Parish/Latin record), Primary Subject Name, Date of Event, Father's Name, Mother's Name (including maiden name), and Town. 
-       - Extract any mentioned Occupation(s) for the parents or subject.
-       - Extract any specific Street Address, House Number, or Parish Name mentioned.
-    
-    3. IF INDEX/LIST: Identify the type of index (e.g., Births 1850). Provide a NUMBERED LIST of every name visible on the page. For each name, include the associated Year, Record Number, or Page Number if shown.
-    
-    4. TRANSCRIPTION: Provide a full transcription of names and any marginalia (noting if the record is in Latin or Italian).
-    
-    5. SUMMARY: Provide an English Summary of the key findings, including any supplemental documents found in the file (especially for Processetti).
-    
-    IMPORTANT: After your summary, provide a single line starting with "RAW_DATA: " followed by a JSON block exactly like this:
-    RAW_DATA: {{"type": "...", "subject": "...", "date": "...", "father": "...", "mother": "...", "town": "...", "occupation": "...", "address": "...", "notes": "..."}}
-    
-    NOTE FOR INDEX PAGES: In the RAW_DATA JSON, put "Index/List" in 'type' and a brief range (e.g., "Index A-M") in 'subject'. Put the full numbered list of names from step 3 into the 'notes' field so it is preserved in the research log.
-    """
+    # Using the prompt variable formatted with context
+    prompt = DEFAULT_PROMPT.format(metadata_context=metadata_context)
 
     response = _model_instance.generate_content([prompt, {"mime_type": "image/jpeg", "data": img_bytes}])
     return response.text
@@ -207,6 +211,10 @@ with st.sidebar:
         10. **Notes:** Marginalia, ages, Latin-to-English clarifications, or supplemental document details.
         11. **Source URL:** Direct link to the original record.
         """)
+
+    with st.expander("🤖 Current AI Prompt"):
+        st.info("This is the instruction set currently being used by the AI:")
+        st.code(DEFAULT_PROMPT, language="text")
 
     st.markdown("---")
     st.markdown("📖 [Learn more about this app](https://community.familysearch.org/en/discussion/179735/antenati-full-sized-image)")
