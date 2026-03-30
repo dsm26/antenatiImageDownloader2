@@ -219,7 +219,7 @@ if "GEMINI_API_KEY" in st.secrets:
             with model_col:
                 selected_model_name = st.selectbox(
                     "AI Model:",
-                    options=["gemini-3.1-flash-lite-preview", "2.5-flash", "2.5-flash-lite", "3.1-flash-lite"],
+                    options=["gemini-3.1-flash-lite-preview", "gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-3.1-flash-lite"],
                     index=0
                 )
             
