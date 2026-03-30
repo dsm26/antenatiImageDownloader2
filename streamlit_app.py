@@ -100,15 +100,18 @@ def get_stitched_image(image_id):
 def get_ai_analysis(img_bytes, metadata_context, _model_instance):
     prompt = f"""
     ARCHIVAL CONTEXT: {metadata_context}
-    
-    TASK: Analyze this 19th-century Italian civil record.
-    1. Identify Record Type, Primary Subject Name, Date of Event, Father's Name, Mother's Name (with maiden name), and Town.
-    2. Provide a full transcription of names and any marginalia.
-    3. Provide an English Summary of the key findings.
-    
+            
+    TASK: Analyze this Italian genealogical record (Civil, Church, or Supplemental/Processetti).
+    1. Identify Record Type (e.g., Birth, Marriage, Death, Processetti, Allegati, Parish/Latin record), Primary Subject Name, Date of Event, Father's Name, Mother's Name (with maiden name), and Town.
+    2. Extract any mentioned Occupation(s) for the parents or subject.
+    3. Extract any specific Street Address, House Number, or Parish Name mentioned.
+    4. Provide a full transcription of names and any marginalia (noting if the record is in Latin or Italian).
+    5. Provide an English Summary of the key findings, including any supplemental documents found in the file.
+                                        
     IMPORTANT: After your summary, provide a single line starting with "RAW_DATA: " followed by a JSON block exactly like this:
-    RAW_DATA: {{"type": "...", "subject": "...", "date": "...", "father": "...", "mother": "...", "town": "...", "notes": "..."}}
+    RAW_DATA: {{"type": "...", "subject": "...", "date": "...", "father": "...", "mother": "...", "town": "...", "occupation": "...", "address": "...", "notes": "..."}}
     """
+
     response = _model_instance.generate_content([prompt, {"mime_type": "image/jpeg", "data": img_bytes}])
     return response.text
 
@@ -184,8 +187,10 @@ with st.sidebar:
         5. **Father:** Father's full name.
         6. **Mother:** Mother's full name (including maiden name).
         7. **Town:** Archive/Registration location.
-        8. **Notes:** Marginalia, ages, or additional family details.
-        9. **Source URL:** Direct link to the original record.
+        8. **Occupation:** Profession of subject, parents, or witnesses.
+        9. **Address:** Street name, house number, or hamlet (frazione).
+        10. **Notes:** Marginalia, ages, or additional family details.
+        11. **Source URL:** Direct link to the original record.
         """)
 
     st.markdown("---")
