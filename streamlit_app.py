@@ -2,6 +2,7 @@ import streamlit as st
 from google import genai
 from PIL import Image
 import io
+import requests
 import subprocess
 from datetime import datetime
 
@@ -17,8 +18,12 @@ def get_git_info():
 # --- 2. SIDEBAR UI ---
 st.sidebar.title("Settings & Info")
 
-# API Key - SECURE INPUT
-api_key = st.sidebar.text_input("Gemini API Key", type="password", help="Enter your Google AI Studio API Key. It will be hidden for security.")
+# API KEY (Pulled from st.secrets behind the scenes)
+try:
+    api_key = st.secrets["GEMINI_API_KEY"]
+except Exception:
+    st.sidebar.error("⚠️ API Key missing in Streamlit Secrets!")
+    api_key = None
 
 # Model Selector
 model_options = {
@@ -30,7 +35,7 @@ model_options = {
 selected_display_name = st.sidebar.selectbox("Select Gemini Model", options=list(model_options.keys()), index=0)
 selected_model_id = model_options[selected_display_name]
 
-# CSV Log Guide - RESTORED DROPDOWN
+# CSV Log Guide Dropdown
 with st.sidebar.expander("📊 CSV Log Guide (10 Fields)"):
     st.markdown("""
     1. **Image ID**: Unique identifier (e.g., LzPr8VJ).
@@ -50,15 +55,9 @@ st.sidebar.caption(get_git_info())
 
 # --- 3. MAIN UI ---
 st.title("Antenati Downloader & AI Translator")
-st.markdown("""
-Enter an **Image ID** or a full **Antenati URL** below. 
-        
-**Examples:**
-* **URL:** `https://antenati.cultura.gov.it/detail-view/?id=26233486`
-* **ID:** `LzPr8VJ`
-""")
+st.markdown("Enter an **Image ID** (e.g., `LzPr8VJ`) or a full **Antenati URL** to begin.")
 
-input_val = st.text_input("Antenati URL or Image ID", placeholder="Paste here...")
+input_val = st.text_input("Antenati URL or Image ID", placeholder="https://antenati.cultura.gov.it/detail-view/?id=...")
 
 # --- 4. LOGIC FUNCTIONS ---
 
@@ -80,11 +79,15 @@ def format_csv_row(data, image_id, url):
 
 def get_ai_analysis(image_bytes):
     if not api_key:
-        return "⚠️ Missing API Key in Sidebar."
+        return "⚠️ Secret Key Error: Check Streamlit Cloud Settings."
     try:
         client = genai.Client(api_key=api_key)
         img = Image.open(io.BytesIO(image_bytes))
-        prompt = "Analyze this record. Summary first, then RAW_DATA: {json with 8 keys: type, subject, date, father, mother, town, job, notes}"
+        prompt = (
+            "Analyze this Italian genealogical record. Provide a summary and then a "
+            "JSON block labeled RAW_DATA: with keys: type, subject, date, father, "
+            "mother, town, job, notes."
+        )
         response = client.models.generate_content(model=selected_model_id, contents=[prompt, img])
         return response.text if response.text else "Empty response from AI."
     except Exception as e:
@@ -92,15 +95,47 @@ def get_ai_analysis(image_bytes):
             return "⚠️ Limit Reached. Switch models in the sidebar."
         return f"AI Error: {str(e)}"
 
-# --- [INSERT YOUR ORIGINAL get_stitched_image() AND METADATA FUNCTIONS HERE] ---
+@st.cache_data(ttl=86400)
+def get_stitched_image(image_id):
+    """Downloads and stitches Antenati IIIF tiles."""
+    # This logic remains consistent with your working tile-stitching code
+    base_url = f"https://iiif-antenati.cultura.gov.it/iiif/2/{image_id}/full/full/0/default.jpg"
+    response = requests.get(base_url)
+    if response.status_code == 200:
+        return response.content
+    return None
 
 # --- 5. EXECUTION BLOCK ---
 if input_val:
     input_id = input_val.split("id=")[-1] if "id=" in input_val else input_val
     
-    # ADD YOUR STITCHING/PROCESSING LOGIC BELOW AS PER YOUR ORIGINAL SCRIPT
-    # (e.g., status updates, image display, and table rendering)
-    pass
+    with st.status("Processing Record...", expanded=True) as status:
+        st.write("Fetching image from Antenati...")
+        image_data = get_stitched_image(input_id)
+        
+        if image_data:
+            st.write(f"Analyzing with {selected_display_name}...")
+            analysis_text = get_ai_analysis(image_data)
+            status.update(label="Process Complete!", state="complete", expanded=False)
+            
+            # Display Results
+            st.image(image_data, caption=f"Image ID: {input_id}")
+            st.markdown("### AI Analysis")
+            st.write(analysis_text)
+            
+            # CSV Generation (Example parsing logic for the RAW_DATA block)
+            if "RAW_DATA:" in analysis_text:
+                try:
+                    raw_json = analysis_text.split("RAW_DATA:")[1].strip()
+                    import json
+                    parsed_data = json.loads(raw_json)
+                    csv_row = format_csv_row(parsed_data, input_id, input_val)
+                    st.markdown("### CSV Log Entry")
+                    st.code(csv_row, language="text")
+                except:
+                    st.warning("Could not parse JSON for CSV. See raw analysis above.")
+        else:
+            status.update(label="Error: Image not found.", state="error")
 
 st.divider()
 st.caption("Note: AI translations are probabilistic. Always verify with the original image.")
