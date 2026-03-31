@@ -10,35 +10,28 @@ import subprocess
 from datetime import datetime
 import streamlit.components.v1 as components
 
-# --- GOOGLE ANALYTICS JS ---
-# Replace G-XXXXXXXXXX with your actual GA4 Measurement ID
-GA_ID = "G-XQJ3JK017D" 
-GA_JS = f"""
-    <script async src="https://www.googletagmanager.com/gtag/js?id={GA_ID}"></script>
-    <script>
-        window.dataLayer = window.dataLayer || [];
-        function gtag(){{dataLayer.push(arguments);}}
-        gtag('js', new Date());
-        gtag('config', '{GA_ID}');
+# --- GOOGLE ANALYTICS TRACKING ---
+GA_MEASUREMENT_ID = "G-XQJ3JK017D"
 
-        window.parent.trackGAEvent = function(eventName, params) {{
-            gtag('event', eventName, params);
-        }};
-    </script>
-"""
-
-def track_event(event_name, params=None):
-    """Helper to inject tracking JS into the app"""
+def track_ga_event(event_name, params=None):
+    """
+    Self-contained tracking function to avoid 'window.parent' errors.
+    Each call initializes its own gtag instance within the component's iframe.
+    """
     if params is None:
         params = {}
-    components.html(
-        f"""
+    
+    track_code = f"""
+        <script async src="https://www.googletagmanager.com/gtag/js?id={GA_MEASUREMENT_ID}"></script>
         <script>
-            window.parent.gtag('event', '{event_name}', {json.dumps(params)});
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){{dataLayer.push(arguments);}}
+            gtag('js', new Date());
+            gtag('config', '{GA_MEASUREMENT_ID}');
+            gtag('event', '{event_name}', {json.dumps(params)});
         </script>
-        """,
-        height=0,
-    )
+    """
+    components.html(track_code, height=0, width=0)
 
 # --- CONFIGURATION ---
 CHOSEN_MODEL = 'gemini-3.1-flash-lite-preview' 
@@ -83,8 +76,8 @@ DEFAULT_PROMPT = """
 
 st.set_page_config(page_title="Antenati Downloader & AI Translator", page_icon="🧬", layout="wide")
 
-# Inject Base GA Tracking (Page View)
-components.html(GA_JS, height=0)
+# Track Page View on load
+track_ga_event("page_view")
 
 if "history" not in st.session_state:
     st.session_state.history = []
@@ -128,8 +121,8 @@ def get_antenati_metadata(input_str):
 @st.cache_data(show_spinner=False, ttl=CACHE_TTL)
 def get_stitched_image(image_id):
     # Track Stitch Request
-    track_event("image_stitch_request", {"image_id": image_id})
-    
+    track_ga_event("image_stitch_request", {"image_id": image_id})
+
     base_url = f"https://iiif-antenati.cultura.gov.it/iiif/2/{image_id}"
     info_resp = requests.get(f"{base_url}/info.json", headers=HEADERS)
     info_resp.raise_for_status()
@@ -353,8 +346,8 @@ if final_api_key:
 
             if translate_clicked:
                 # Track Translation Request
-                track_event("ai_translation_request", {"image_id": input_id, "model": selected_model_name})
-                
+                track_ga_event("ai_translation_request", {"image_id": input_id, "model": selected_model_name})
+
                 current_model = genai.GenerativeModel(selected_model_name)
                 status_area.info(f"⏳ AI is analyzing record: {input_id}. Results will appear **below** once completed...")
                 
