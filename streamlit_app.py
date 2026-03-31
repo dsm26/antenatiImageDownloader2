@@ -22,24 +22,33 @@ HEADERS = {
 DEFAULT_PROMPT = """
     ARCHIVAL CONTEXT: {metadata_context}
     
-    TASK: Analyze this Italian genealogical image (Civil, Church, or Supplemental/Processetti). It may be a singular formal record or an Index Page (Indice) listing multiple individuals.
+    TASK: Analyze this Italian genealogical image. It may be a Singular Record (Birth, Marriage, Death), a Census (Censimento) page, or an Index (Indice) page.
     
-    1. CATEGORIZE: Is this a singular formal record or an Index/List?
+    1. CATEGORIZE: Is this a 'Singular Record' or a 'List/Table' (Census or Index)?
     
-    2. IF SINGULAR: Identify Record Type (e.g., Birth, Marriage, Death, Processetti, Allegati, Parish/Latin record), Primary Subject Name, Date of Event, Father's Name, Mother's Name (including maiden name), and Town. 
+    2. IF SINGULAR RECORD: 
+       - Identify Record Type (e.g., Birth, Marriage, Death, Processetti, Allegati, Parish/Latin record), Primary Subject Name, Date of Event, Father, Mother (including maiden name), Town, Occupation, and Address.
+       - Extract ages of people mentioned
        - Extract any mentioned Occupation(s) for the parents or subject.
        - Extract any specific Street Address, House Number, or Parish Name mentioned.
     
-    3. IF INDEX/LIST: Identify the type of index (e.g., Births 1850). Provide a NUMBERED LIST of every name visible on the page. For each name, include the associated Year, Record Number, or Page Number if shown.
+    3. IF LIST/TABLE (CENSUS OR INDEX): 
+       - Identify the document type (e.g., Census 1881, Marriage Index 1850).
+       - Extract all entries into a structured list. For Census: include Name, Age/Year, Relation to Head, and Occupation. For Indexes: include Name, Parents, Record Number, and Year.
     
-    4. TRANSCRIPTION: Provide a full transcription of names and any marginalia (noting if the record is in Latin or Italian).
+    4. TRANSCRIPTION: Provide a full transcription of names and marginalia.
+       - Provide the original reading of the Italian or Latin transcription
+       - Provide the full english translation
     
-    5. SUMMARY: Provide an English Summary of the key findings, including any supplemental documents found in the file (especially for Processetti).
+    5. SUMMARY: Provide an English Summary of findings.
     
-    IMPORTANT: After your summary, provide a single line starting with "RAW_DATA: " followed by a JSON block exactly like this:
-    RAW_DATA: {{"type": "...", "subject": "...", "date": "...", "father": "...", "mother": "...", "town": "...", "occupation": "...", "address": "...", "notes": "..."}}
+    IMPORTANT: After your summary, provide a single line starting with "RAW_DATA: " followed by a JSON block.
     
-    NOTE FOR INDEX PAGES: In the RAW_DATA JSON, put "Index/List" in 'type' and a brief range (e.g., "Index A-M") in 'subject'. Put the full numbered list of names from step 3 into the 'notes' field so it is preserved in the research log.
+    FOR SINGULAR RECORDS:
+    RAW_DATA: {{"format": "individual", "type": "...", "subject": "...", "date": "...", "father": "...", "mother": "...", "town": "...", "occupation": "...", "address": "...", "notes": "..."}}
+    
+    FOR LISTS/TABLES (CENSUS/INDEX):
+    RAW_DATA: {{"format": "list", "type": "...", "columns": ["Name", "Detail 1", "Detail 2"], "rows": [["Name 1", "Val 1", "Val 2"], ["Name 2", "Val 3", "Val 4"]]}}
     """
 
 st.set_page_config(page_title="Antenati Downloader & AI Translator", page_icon="🧬", layout="wide")
@@ -132,20 +141,29 @@ def get_ai_analysis(img_bytes, metadata_context, _model_instance):
 def format_csv_row(data, image_id, source_input):
     if not data: return None
     source_url = source_input if "http" in source_input else f"https://antenati.cultura.gov.it/ark:/12657/an_ua/{image_id}"
-    row = [
-        image_id,                                # 1
-        data.get("type",""),                     # 2
-        data.get("subject",""),                  # 3
-        data.get("date",""),                     # 4
-        data.get("father",""),                   # 5
-        data.get("mother",""),                   # 6
-        data.get("town",""),                     # 7
-        data.get("occupation",""),               # 8
-        data.get("address",""),                  # 9
-        data.get("notes","").replace("\n", " "), # 10
-        source_url                               # 11
-    ]
-    return ",".join([f'"{str(x)}"' for x in row])
+    
+    if data.get("format") == "list":
+        rows = []
+        headers = ["ID", "Type", "Source"] + data.get("columns", [])
+        for r in data.get("rows", []):
+            row_data = [image_id, data.get("type"), source_url] + r
+            rows.append(",".join([f'"{str(x)}"' for x in row_data]))
+        return "\n".join(rows)
+    else:
+        row = [
+            image_id,                                # 1
+            data.get("type",""),                     # 2
+            data.get("subject",""),                  # 3
+            data.get("date",""),                     # 4
+            data.get("father",""),                   # 5
+            data.get("mother",""),                   # 6
+            data.get("town",""),                     # 7
+            data.get("occupation",""),               # 8
+            data.get("address",""),                  # 9
+            data.get("notes","").replace("\n", " "), # 10
+            source_url                               # 11
+        ]
+        return ",".join([f'"{str(x)}"' for x in row])
 
 def extract_raw_data(ai_text):
     try:
@@ -198,7 +216,7 @@ with st.sidebar:
     st.markdown("---")
     with st.expander("📊 CSV Log Guide"):
         st.markdown("""
-        **Column Meanings:**
+        **Individual Records:**
         1. **ID:** Antenati Image ID.
         2. **Type:** Birth, Marriage, Death, *Processetti/Allegati*, or Parish Record.
         3. **Subject:** The primary person(s) of the record.
@@ -210,6 +228,12 @@ with st.sidebar:
         9. **Address:** Street name, house number, or hamlet (frazione).
         10. **Notes:** Marginalia, ages, Latin-to-English clarifications, or supplemental document details.
         11. **Source URL:** Direct link to the original record.
+        
+        **Census/Index Lists:** Multi-row format.
+        1. **ID:** Antenati Image ID.
+        2. **Type:** Type of list.
+        3. **Source URL:** Direct link.
+        4. **Data Columns:** Vary based on the document (Name, Age, Year, etc).
         """)
 
     with st.expander("🤖 Current AI Prompt"):
@@ -263,8 +287,6 @@ if final_api_key:
             # --- MANUAL TRANSLATION BUTTON & MODEL SELECTOR ---
             st.markdown("---")
 
-            # Using vertical_alignment="bottom" ensures the button aligns
-            # with the input field, not the label
             model_col, btn_col, key_status_col, spacer = st.columns([2, 2, 3, 1], vertical_alignment="bottom")
 
             with model_col:
@@ -280,7 +302,6 @@ if final_api_key:
                 )
 
             with btn_col:
-                # This button will now stay on the same line as the selector
                 translate_clicked = st.button("Translate with AI", type="primary", use_container_width=True)
 
             with key_status_col:
@@ -289,7 +310,6 @@ if final_api_key:
                 else:
                     st.write("using default Gemini API key")
 
-            # AI status area is placed here so it appears below the button but above the findings
             status_area = st.empty()
 
             if translate_clicked:
@@ -309,36 +329,41 @@ if final_api_key:
                     if raw_data:
                         st.markdown("---")
                         st.subheader("📊 Research Log Data")
-                        
-                        # Shared source URL logic for Table and CSV
                         final_source_url = raw_input if "http" in raw_input else f"https://antenati.cultura.gov.it/ark:/12657/an_ua/{input_id}"
-                
-                        st.table({
-                            "Field": [
-                                "1. ID", "2. Record Type", "3. Subject", "4. Date", 
-                                "5. Father", "6. Mother", "7. Town", 
-                                "8. Occupation", "9. Address", "10. Notes", "11. Source URL"
-                            ],
-                            "Value": [
-                                input_id, 
-                                raw_data.get("type"), 
-                                raw_data.get("subject"), 
-                                raw_data.get("date"), 
-                                raw_data.get("father"), 
-                                raw_data.get("mother"), 
-                                raw_data.get("town"), 
-                                raw_data.get("occupation"), 
-                                raw_data.get("address"), 
-                                raw_data.get("notes"),
-                                final_source_url
-                            ]
-                        })
+                        
+                        if raw_data.get("format") == "list":
+                            # Census/Index Multi-row table
+                            cols = raw_data.get("columns", [])
+                            rows = raw_data.get("rows", [])
+                            st.dataframe(data=rows, columns=cols, use_container_width=True)
+                        else:
+                            # Standard Individual Record table
+                            st.table({
+                                "Field": [
+                                    "1. ID", "2. Record Type", "3. Subject", "4. Date", 
+                                    "5. Father", "6. Mother", "7. Town", 
+                                    "8. Occupation", "9. Address", "10. Notes", "11. Source URL"
+                                ],
+                                "Value": [
+                                    input_id, 
+                                    raw_data.get("type"), 
+                                    raw_data.get("subject"), 
+                                    raw_data.get("date"), 
+                                    raw_data.get("father"), 
+                                    raw_data.get("mother"), 
+                                    raw_data.get("town"), 
+                                    raw_data.get("occupation"), 
+                                    raw_data.get("address"), 
+                                    raw_data.get("notes"),
+                                    final_source_url
+                                ]
+                            })
                         
                 # --- CSV CODE BLOCK ---
                         csv_row = format_csv_row(raw_data, input_id, raw_input)
-                        st.markdown("**CSV Copy-Paste Row:**")
+                        st.markdown("**CSV Copy-Paste Row(s):**")
                         st.code(csv_row, language="csv")
-                        st.caption("☝️ Use the copy button in the top right to paste this row into your master log.")
+                        st.caption("☝️ Use the copy button in the top right to paste into your log.")
                     
                     status_area.success(f"✅ Analysis complete. [View Findings](#findings)")
 
