@@ -127,7 +127,7 @@ def get_antenati_metadata(input_str):
 
 # --- DOWNLOAD & STITCHING ---
 @st.cache_data(show_spinner=False, ttl=CACHE_TTL)
-def get_stitched_image(image_id):
+def get_stitched_image(image_id, source_input):
     base_url = f"https://iiif-antenati.cultura.gov.it/iiif/2/{image_id}"
     info_resp = requests.get(f"{base_url}/info.json", headers=HEADERS)
     info_resp.raise_for_status()
@@ -158,8 +158,13 @@ def get_stitched_image(image_id):
             final_img.paste(tile_data, (x, y))
     
     progress_placeholder.empty()
+
+    # Embed metadata into EXIF (Tag 270 is ImageDescription)
+    exif = final_img.getexif()
+    exif[270] = f"Source: {source_input}"
+
     buf = BytesIO()
-    final_img.save(buf, format="JPEG", quality=95)
+    final_img.save(buf, format="JPEG", quality=95, exif=exif)
     return buf.getvalue()
 
 # --- AI ANALYSIS ---
@@ -311,7 +316,7 @@ if final_api_key:
 
         try:
             record_meta = get_antenati_metadata(raw_input if "http" in raw_input else input_id)
-            img_data = get_stitched_image(input_id)
+            img_data = get_stitched_image(input_id, raw_input)
             
             # --- TRACK IMAGE STITCHING/VIEW ---
             track_ga_event("image_stitched", {"image_id": input_id, "metadata": record_meta[:100]})
