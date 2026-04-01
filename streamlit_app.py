@@ -398,9 +398,10 @@ if final_api_key:
                 current_model = genai.GenerativeModel(selected_model_name)
                 status_area.info(f"⏳ AI is analyzing record: {input_id}. Results will appear **below** once completed...")
                 status_area.info(
-                    f"⏳ AI is analyzing record: {input_id}. Results will appear **below** once completed...<br><br>"
+                    f"⏳ AI is analyzing record: {input_id}. Results will appear **below** once completed...\n\n"
                     "💡 **Be kind!** By default, this page uses a shared account with a daily rate limit. "
                     "If you plan to perform many translations, please use your own key in the sidebar."
+                )
                 )
                 
                 try:
@@ -456,7 +457,11 @@ if final_api_key:
                         st.code(csv_row, language="csv")
                         st.caption("☝️ Use the copy button in the top right to paste into your log.")
                     
-                    status_area.success(f"✅ Analysis complete. [View Findings](#findings)")
+                    status_area.success(
+                        f"✅ Analysis complete. [View Findings](#findings)\n\n"
+                        "💡 **Be kind!** By default, this page uses a shared account with a daily rate limit. "
+                        "If you plan to perform many translations, please use your own key in the sidebar."
+                    )
 
                 except Exception as e:
                     status_area.empty()
