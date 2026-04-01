@@ -135,9 +135,8 @@ def get_stitched_image(image_id, source_input):
     
     w, h = info["width"], info["height"]
     
-    # Dynamic font and footer calculation
-    dynamic_font_size = max(20, int(w * 0.02))
-    footer_height = int(dynamic_font_size * 2.5) 
+    # Border/Footer settings
+    footer_height = 50
     
     # Corrected extraction logic for tile dimensions
     first_tile = info["tiles"][0]
@@ -167,15 +166,15 @@ def get_stitched_image(image_id, source_input):
     # --- ADD TEXT OVERLAY ---
     draw = ImageDraw.Draw(final_img)
     try:
-        # standard linux/cloud font path with dynamic size
-        font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", dynamic_font_size)
+        # standard linux/cloud font path
+        font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 24)
     except:
         font = ImageFont.load_default()
 
     label_text = f"Source: {source_input}"
-    # Left-justified: x set to a small padding (20), vertically centered in footer
+    # Draw the text in the new white space (the footer)
     text_x = 20
-    text_y = h + (footer_height // 4)
+    text_y = h + 10
     draw.text((text_x, text_y), label_text, fill=(0, 0, 0), font=font)
 
     # Embed metadata into EXIF (Tag 270 is ImageDescription)
