@@ -307,7 +307,7 @@ with st.sidebar:
 # --- MAIN UI ---
 st.title("🏛️ Antenati Downloader & AI Translator")
 
-with st.expander("ℹ️ Instructions & Related Tools"):
+with st.expander("ℹ️ Instructions"):
     st.markdown("""
     This tool is designed for use with the official [Antenati portal](https://antenati.cultura.gov.it/), 
     not the copies found on FamilySearch.
@@ -326,6 +326,10 @@ with st.expander("ℹ️ Instructions & Related Tools"):
     **Example ID:** LzPr8VJ
 
     🔗 **Quick Link:** Pass parameters in the browser bar using `?url=FULL_URL` or `?image_id=ID`.
+
+    💡 **Be kind!** By default, this page uses a shared Google Gemini AI account with a daily rate limit for the AI translations. If you plan to perform many translations, please [create your own free Gemini API key](https://aistudio.google.com/api-keys) and specify it in the left sidebar.
+
+    There is no rate limit for the image downloading.
     """)
 
 # Determine which API key to use (Personal > Secret)
@@ -393,6 +397,11 @@ if final_api_key:
                 track_ga_event("ai_translation_started", {"model": selected_model_name, "image_id": input_id})
                 current_model = genai.GenerativeModel(selected_model_name)
                 status_area.info(f"⏳ AI is analyzing record: {input_id}. Results will appear **below** once completed...")
+                status_area.info(
+                    f"⏳ AI is analyzing record: {input_id}. Results will appear **below** once completed...<br><br>"
+                    "💡 **Be kind!** By default, this page uses a shared account with a daily rate limit. "
+                    "If you plan to perform many translations, please use your own key in the sidebar."
+                )
                 
                 try:
                     analysis_text = get_ai_analysis(img_data, record_meta, current_model)
@@ -401,7 +410,6 @@ if final_api_key:
                     
                     st.markdown('<div id="findings"></div>', unsafe_allow_html=True)
                     st.markdown("---")
-                    st.info("💡 **Be kind!** By default, this page uses a shared Google Gemini AI account with a daily rate limit. If you plan to perform many translations, please [create your own free Gemini API key](https://aistudio.google.com/api-keys) and specify it in the left sidebar.")
                     st.subheader("📝 AI Findings")
                     st.write(display_text)
                     
