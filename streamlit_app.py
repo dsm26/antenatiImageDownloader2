@@ -318,10 +318,10 @@ with st.expander("ℹ️ Instructions"):
     3. Paste that link into the box below.
 
     **Example URLs:**
-    * https://antenati.cultura.gov.it/ark:/12657/an_ua264421/LzPr8VJ
-    * https://antenati.cultura.gov.it/ark:/12657/an_ua264421/LzPr8x9
-    * https://antenati.cultura.gov.it/ark:/12657/an_ua36205266/Le8qveo
-    * https://antenati.cultura.gov.it/ark:/12657/an_ua36203217/Lz7XnvP
+    * https://antenati.cultura.gov.it/ark:/12657/an_ua264421/LzPr8VJ - 1871 Civile Nati
+    * https://antenati.cultura.gov.it/ark:/12657/an_ua264421/LzPr8x9 - 1871 Civile Nati index page
+    * https://antenati.cultura.gov.it/ark:/12657/an_ua36205266/Le8qveo - 1816 Matrimoni index page
+    * https://antenati.cultura.gov.it/ark:/12657/an_ua36203217/Lz7XnvP - 1841 Censimento page
 
     **Example ID:** LzPr8VJ
 
