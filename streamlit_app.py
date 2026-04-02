@@ -87,6 +87,11 @@ DEFAULT_PROMPT = """
 
 st.set_page_config(page_title="Antenati Downloader & AI Translator", page_icon="🧬", layout="wide")
 
+# --- INITIAL PAGE LOAD TRACKING ---
+if "page_loaded" not in st.session_state:
+    track_ga_event("page_load")
+    st.session_state.page_loaded = True
+
 if "history" not in st.session_state:
     st.session_state.history = []
 
@@ -129,9 +134,13 @@ def get_antenati_metadata(input_str):
 @st.cache_data(show_spinner=False, ttl=CACHE_TTL)
 def get_stitched_image(image_id, source_input):
     base_url = f"https://iiif-antenati.cultura.gov.it/iiif/2/{image_id}"
-    info_resp = requests.get(f"{base_url}/info.json", headers=HEADERS)
-    info_resp.raise_for_status()
-    info = info_resp.json()
+    try:
+        info_resp = requests.get(f"{base_url}/info.json", headers=HEADERS)
+        info_resp.raise_for_status()
+        info = info_resp.json()
+    except Exception as e:
+        track_ga_event("antenati_error", {"error_type": "info_json", "image_id": image_id})
+        raise e
     
     w, h = info["width"], info["height"]
     
@@ -157,9 +166,14 @@ def get_stitched_image(image_id, source_input):
             tile_w, tile_h = min(tw, w - x), min(th, h - y)
             tile_url = f"{base_url}/{x},{y},{tile_w},{tile_h}/full/0/default.jpg"
             progress_placeholder.progress(tile_count / total_tiles, text=f"📥 Downloading tile {tile_count} of {total_tiles}...")
-            res = requests.get(tile_url, headers=HEADERS)
-            tile_data = Image.open(BytesIO(res.content))
-            final_img.paste(tile_data, (x, y))
+            try:
+                res = requests.get(tile_url, headers=HEADERS)
+                res.raise_for_status()
+                tile_data = Image.open(BytesIO(res.content))
+                final_img.paste(tile_data, (x, y))
+            except Exception as e:
+                track_ga_event("antenati_error", {"error_type": "tile_download", "image_id": image_id})
+                raise e
     
     progress_placeholder.empty()
 
@@ -257,6 +271,9 @@ with st.sidebar:
         placeholder="Paste your key here...",
         help="If the app's shared quota is reached, you can use your own key. [Create a free API key here](https://aistudio.google.com/api-keys)."
     )
+    if user_api_key and "api_key_tracked" not in st.session_state:
+        track_ga_event("personal_key_entered")
+        st.session_state.api_key_tracked = True
     
     st.write(f"**Cache TTL:** {CACHE_TTL//60}m")
     if st.button("🗑️ Clear Cache & History"):
@@ -344,7 +361,21 @@ if final_api_key:
     initial_value = url_param if url_param else id_param
     
     raw_input = st.text_input("Paste Antenati URL or Image ID:", value=initial_value)
+    
+    # --- URL VALIDATION & ARK TRACKING ---
+    ark_part1 = ""
+    ark_part2 = ""
+    ark_match = re.search(r'ark:/12657/(an_ua\d+)/([^/?#]+)', raw_input)
+    if ark_match:
+        ark_part1 = ark_match.group(1)
+        ark_part2 = ark_match.group(2)
+        track_ga_event("ark_components_tracked", {"ark_unit": ark_part1, "ark_id": ark_part2})
+
     input_id = raw_input.strip().split('/')[-1] if "/" in raw_input else raw_input.strip()
+    
+    # Simple validation for invalid ID formats
+    if input_id and not re.match(r'^[A-Za-z0-9]+$', input_id):
+        track_ga_event("invalid_input_error", {"input_value": input_id[:50]})
 
     if input_id:
         if input_id not in st.session_state.history:
@@ -360,7 +391,9 @@ if final_api_key:
             # Action Row
             col1, spacer = st.columns([2, 8])
             with col1:
-                st.download_button("📥 Download JPG", img_data, f"{input_id}.jpg", "image/jpeg", use_container_width=True)
+                dl_btn = st.download_button("📥 Download JPG", img_data, f"{input_id}.jpg", "image/jpeg", use_container_width=True)
+                if dl_btn:
+                    track_ga_event("download_button_pushed", {"image_id": input_id})
 
             st.image(img_data, use_container_width=True)
             st.info(f"📍 **Archival Context:** {record_meta}")
@@ -395,6 +428,9 @@ if final_api_key:
 
             if translate_clicked:
                 track_ga_event("ai_translation_started", {"model": selected_model_name, "image_id": input_id})
+                if user_api_key:
+                    track_ga_event("personal_key_used_for_translation")
+                
                 current_model = genai.GenerativeModel(selected_model_name)
                 status_area.info(f"⏳ AI is analyzing record: {input_id}. Results will appear **below** once completed...")
                 status_area.info(
@@ -463,6 +499,7 @@ if final_api_key:
                     )
 
                 except Exception as e:
+                    track_ga_event("gemini_api_error", {"error_msg": str(e)[:100]})
                     status_area.empty()
                     if "429" in str(e) or "quota" in str(e).lower():
                         st.warning("⚠️ **Rate Limit Reached:** API quota hit. Wait a moment or use your own key.")
