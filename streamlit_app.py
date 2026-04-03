@@ -512,9 +512,7 @@ if final_api_key:
                         st.caption("☝️ Use the copy button in the top right to paste into your log.")
                     
                     status_area.success(
-                        f"✅ Analysis complete. [View Findings](#findings)\n\n"
-                        "💡 **Note:** By default, this page uses a shared account with a daily rate limit. "
-                        "If you plan to perform many translations (e.g. over 100), please use your own key in the sidebar."
+                        f"✅ Analysis complete. [View Findings](#findings)"
                     )
 
                 except Exception as e:
