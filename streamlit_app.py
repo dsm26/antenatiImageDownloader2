@@ -85,7 +85,7 @@ DEFAULT_PROMPT = """
     RAW_DATA: {{"format": "list", "type": "...", "columns": ["Name", "Detail 1", "Detail 2"], "rows": [["Name 1", "Val 1", "Val 2"], ["Name 2", "Val 3", "Val 4"]]}}
     """
 
-st.set_page_config(page_title="Antenati Downloader & AI Translator", page_icon="🧬", layout="wide")
+st.set_page_config(page_title="Antenati Downloader & AI Translator", page_icon="📜", layout="wide")
 
 # --- INITIAL PAGE LOAD TRACKING ---
 if "page_loaded" not in st.session_state:
