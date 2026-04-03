@@ -181,7 +181,7 @@ def get_stitched_image(image_id, source_input):
     draw = ImageDraw.Draw(final_img)
     try:
         # standard linux/cloud font path
-        font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 24)
+        font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf", 35)
     except:
         font = ImageFont.load_default()
 
@@ -199,7 +199,7 @@ def get_stitched_image(image_id, source_input):
     exif[37510] = f"Source: {source_input}"
 
     buf = BytesIO()
-    final_img.save(buf, format="JPEG", quality=95, exif=exif)
+    final_img.save(buf, format="JPEG", quality=95, subsampling=0, exif=exif)
     return buf.getvalue()
 
 # --- AI ANALYSIS ---
