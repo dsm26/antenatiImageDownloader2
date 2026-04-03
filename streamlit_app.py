@@ -288,10 +288,11 @@ with st.sidebar:
     if st.session_state.history:
         st.markdown("---")
         st.header("🕒 Recent History")
-        for h_id in reversed(st.session_state.history[-5:]):
+        for h_input in reversed(st.session_state.history[-5:]):
+            h_id = h_input.strip().split('/')[-1] if "/" in h_input else h_input.strip()
             if st.button(f"📄 {h_id}", key=f"hist_{h_id}", use_container_width=True):
-                st.query_params["url"] = "" 
-                st.query_params["image_id"] = h_id
+                st.query_params["image_id"] = "" 
+                st.query_params["url"] = h_input
                 st.rerun()
 
     st.markdown("---")
@@ -395,15 +396,14 @@ if final_api_key:
         st.session_state.last_tracked_path = current_identifier
 
     if input_id:
-        if input_id not in st.session_state.history:
-            st.session_state.history.append(input_id)
+        if raw_input not in st.session_state.history:
+            st.session_state.history.append(raw_input)
 
         try:
             record_meta = get_antenati_metadata(raw_input if "http" in raw_input else input_id)
             
-            # Cache using ark_path if available
-            cache_key = ark_path if ark_path else input_id
-            img_data = get_stitched_image(cache_key, input_id, raw_input)
+            # Cache using full raw_input (URL or ID)
+            img_data = get_stitched_image(raw_input, input_id, raw_input)
             
             # --- TRACK IMAGE STITCHING/VIEW (only once per ID) ---
             if "last_stitched_id" not in st.session_state or st.session_state.last_stitched_id != input_id:
