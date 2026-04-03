@@ -413,11 +413,11 @@ if final_api_key:
             # Determine descriptive filename
             save_name = f"{ark_part1}_{input_id}.jpg" if ark_part1 else f"{input_id}.jpg"
 
-            # --- MODEL SELECTOR & AI BUTTON (Now Above Image) ---
+            # --- AI MODEL SELECTOR & STATUS (NOW ABOVE IMAGE) ---
             st.markdown("---")
             model_col, btn_col, spacer = st.columns([4, 2, 4], vertical_alignment="bottom")
 
-            key_suffix = "(personal Gemini key)" if user_api_key else "(default Gemini key)"
+            key_suffix = "(using personal Gemini key)" if user_api_key else "(using default Gemini key)"
             with model_col:
                 selected_model_name = st.selectbox(
                     f"AI Model {key_suffix}:",
@@ -433,7 +433,10 @@ if final_api_key:
             with btn_col:
                 translate_clicked = st.button("Translate with AI", type="primary", use_container_width=True)
 
-            # Action Row
+            # Move status area here so it appears above the image
+            status_area = st.empty()
+
+            # Action Row (Download Button)
             col1, spacer_dl = st.columns([2, 8])
             with col1:
                 dl_btn = st.download_button("📥 Download JPG", img_data, save_name, "image/jpeg", use_container_width=True)
@@ -442,8 +445,6 @@ if final_api_key:
 
             st.image(img_data, use_container_width=True)
             st.info(f"📍 **Archival Context:** {record_meta}")
-
-            status_area = st.empty()
 
             if translate_clicked:
                 track_ga_event("ai_translation_started", {"model": selected_model_name, "image_id": input_id})
