@@ -342,9 +342,16 @@ with st.expander("ℹ️ Instructions"):
 
     **Example ID:** LzPr8VJ
 
+    ### **📥 Best Way to Save**
+    For the best results, always use the **"Download" button** rather than right-clicking the image:
+
+    * **Automatic Naming:** The button automatically names your file using the **Image ID** so your records stay organized.
+    * **Source Tracking:** The app "tags" the image file by embedding the **original Antenati URL** directly into the file's data (metadata).
+    * **Why avoid right-clicking?** If you "Save Image As" from the preview, your computer will give it a **random name** and the link to the original record will not be embedded in the image.
+
     🔗 **Quick Link:** Pass parameters in the browser bar using `?url=FULL_URL` or `?image_id=ID`.
 
-    💡 **Be kind!** By default, this page uses a shared Google Gemini AI account with a daily rate limit for the AI translations. If you plan to perform many translations, please [create your own free Gemini API key](https://aistudio.google.com/api-keys) and specify it in the left sidebar.
+    💡 **AI Use:** By default, this page uses a shared Google Gemini AI account with a daily rate limit for the AI translations. If you plan to perform many translations (e.g. over 100), please [create your own free Gemini API key](https://aistudio.google.com/api-keys) and specify it in the left sidebar.
 
     There is no rate limit for the image downloading.
     """)
@@ -435,8 +442,8 @@ if final_api_key:
                 status_area.info(f"⏳ AI is analyzing record: {input_id}. Results will appear **below** once completed...")
                 status_area.info(
                     f"⏳ AI is analyzing record: {input_id}. Results will appear **below** once completed...\n\n"
-                    "💡 **Be kind!** By default, this page uses a shared account with a daily rate limit. "
-                    "If you plan to perform many translations, please use your own key in the sidebar."
+                    "💡 **Note:** By default, this page uses a shared account with a daily rate limit. "
+                    "If you plan to perform many translations (e.g. over 100), please use your own key in the sidebar."
                 )
                 
                 try:
@@ -494,8 +501,8 @@ if final_api_key:
                     
                     status_area.success(
                         f"✅ Analysis complete. [View Findings](#findings)\n\n"
-                        "💡 **Be kind!** By default, this page uses a shared account with a daily rate limit. "
-                        "If you plan to perform many translations, please use your own key in the sidebar."
+                        "💡 **Note:** By default, this page uses a shared account with a daily rate limit. "
+                        "If you plan to perform many translations (e.g. over 100), please use your own key in the sidebar."
                     )
 
                 except Exception as e:
