@@ -342,7 +342,7 @@ with st.expander("ℹ️ Instructions"):
 
     **Example ID:** LzPr8VJ
 
-    ### **📥 Best Way to Save**
+    **📥 Best Way to Save**
     For the best results, always use the **"Download" button** rather than right-clicking the image:
 
     * **Automatic Naming:** The button automatically names your file using the **Image ID** so your records stay organized.
