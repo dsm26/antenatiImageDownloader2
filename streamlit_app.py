@@ -207,7 +207,7 @@ def get_stitched_image(cache_key, image_id, source_input):
 
 # --- AI ANALYSIS ---
 @st.cache_data(show_spinner=False, ttl=CACHE_TTL)
-def get_ai_analysis(img_bytes, metadata_context, _model_instance):
+def get_ai_analysis(img_bytes, metadata_context, _model_instance, model_name):
     # Using the prompt variable formatted with context
     prompt = DEFAULT_PROMPT.format(metadata_context=metadata_context)
 
@@ -454,12 +454,12 @@ if final_api_key:
                 current_model = genai.GenerativeModel(selected_model_name)
                 status_area.info(
                     f"⏳ AI is analyzing record: {input_id}. Results will appear **below** once completed...\n\n"
-                    "💡 **Note:** By default, this page uses a shared account with a daily rate limit. "
+                    "By default, this page uses a shared account with a daily rate limit. "
                     "If you plan to perform many translations (e.g. over 100), please use your own key in the sidebar."
                 )
                 
                 try:
-                    analysis_text = get_ai_analysis(img_data, record_meta, current_model)
+                    analysis_text = get_ai_analysis(img_data, record_meta, current_model, selected_model_name)
                     display_text = analysis_text.split("RAW_DATA:")[0].strip()
                     raw_data = extract_raw_data(analysis_text)
                     
