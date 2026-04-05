@@ -59,10 +59,12 @@ def log_to_gsheets(sheet_name, row_data):
     script_url = st.secrets.get("GSHEET_WEBAPP_URL")
     if not script_url:
         return
+
+    client_id = st.session_state.get("ga_client_id", "unknown_session")
     
     payload = {
         "sheetName": sheet_name,
-        "rowData": [datetime.now().strftime('%Y-%m-%d %H:%M:%S'), st.session_state.ga_client_id] + row_data
+        "rowData": [datetime.now().strftime('%Y-%m-%d %H:%M:%S'), client_id] + row_data
     }
     
     try:
