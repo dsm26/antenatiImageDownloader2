@@ -430,7 +430,7 @@ if final_api_key:
                     processing_url = redirected
             
             if processing_url != original_input:
-                st.info(f"**Note:** Using link: `{processing_url}`. Links with an_ud in them are not directly downloadable.")
+                st.info(f"**Note:** Using link `{processing_url}`. Links with an_ud in them are not directly downloadable.")
 
     # Update raw_input for the rest of the logic to use the resolved URL
     raw_input = processing_url
