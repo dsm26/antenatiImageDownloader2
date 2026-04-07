@@ -24,37 +24,16 @@ CACHE_TTL = 900
 
 # --- AI PROMPT CONFIGURATION ---
 CHOSEN_MODEL = 'gemini-3.1-flash-lite-preview'
-DEFAULT_PROMPT = """
-    ARCHIVAL CONTEXT: {metadata_context}
-    
-    TASK: Analyze this Italian genealogical image. It may be a Singular Record (Birth, Marriage, Death), a Census (Censimento) page, or an Index (Indice) page.
-    
-    1. CATEGORIZE: Is this a 'Singular Record' or a 'List/Table' (Census or Index)?
-    
-    2. IF SINGULAR RECORD: 
-       - Identify Record Type (e.g., Birth, Marriage, Death, Processetti, Allegati, Parish/Latin record), Primary Subject Name, Date of Event, Father, Mother (including maiden name), Town, Occupation, and Address.
-       - Extract ages of people mentioned
-       - Extract any mentioned Occupation(s) for the parents or subject.
-       - Extract any specific Street Address, House Number, or Parish Name mentioned.
-    
-    3. IF LIST/TABLE (CENSUS OR INDEX): 
-       - Identify the document type (e.g., Census 1881, Marriage Index 1850).
-       - Extract all entries into a structured list. For Census: include Name, Age/Year, Relation to Head, and Occupation. For Indexes: include Name, Parents, Record Number, and Year.
-    
-    4. TRANSCRIPTION: Provide a full transcription of names and marginalia.
-       - Provide the original reading of the Italian or Latin transcription
-       - Provide the full english translation
-    
-    5. SUMMARY: Provide an English Summary of findings.
-    
-    IMPORTANT: After your summary, provide a single line starting with "RAW_DATA: " followed by a JSON block.
-    
-    FOR SINGULAR RECORDS:
-    RAW_DATA: {{"format": "individual", "type": "...", "subject": "...", "date": "...", "father": "...", "mother": "...", "town": "...", "occupation": "...", "address": "...", "notes": "..."}}
-    
-    FOR LISTS/TABLES (CENSUS/INDEX):
-    RAW_DATA: {{"format": "list", "type": "...", "columns": ["Name", "Detail 1", "Detail 2"], "rows": [["Name 1", "Val 1", "Val 2"], ["Name 2", "Val 3", "Val 4"]]}}
-    """
+
+def load_prompt():
+    """Reads the prompt from prompt.txt and handles fallback."""
+    try:
+        with open("prompt.txt", "r", encoding="utf-8") as f:
+            return f.read()
+    except FileNotFoundError:
+        return "Error: AI prompt.txt file not found"
+
+DEFAULT_PROMPT = load_prompt()
 
 # --- GIT METADATA HELPER ---
 def get_git_info():
