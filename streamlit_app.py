@@ -420,7 +420,24 @@ if final_api_key:
     id_param = params.get("image_id", "")
     initial_value = url_param if url_param else id_param
     
-    raw_input = st.text_input("Paste Antenati URL or Image ID:", value=initial_value)
+    raw_input = st.text_input("Paste Antenati URL (preferred) or Image ID:", value=initial_value)
+
+    # --- an_ud INTERCEPTOR & ID EXTRACTION ---
+    original_input = raw_input.strip()
+    processing_url = original_input
+
+    if processing_url:
+        if "/an_ud" in processing_url:
+            with st.spinner("🔍 Document unit detected. Finding specific record link..."):
+                redirected = get_canvas_id_url(processing_url)
+                if redirected:
+                    processing_url = redirected
+            
+            if processing_url != original_input:
+                st.info(f"**Note:** Using link: `{processing_url}`. Links with an_ud in them are not directly downloadable.")
+
+    # Update raw_input for the rest of the logic to use the resolved URL
+    raw_input = processing_url
     
     # --- URL VALIDATION ---
     ark_match = re.search(r'ark:/12657/(an_ua\d+)/([^/?#]+)', raw_input)
@@ -429,8 +446,8 @@ if final_api_key:
     input_id = input_id.split("?")[0]
     
     if input_id:
-        if raw_input not in st.session_state.history:
-            st.session_state.history.append(raw_input)
+        if original_input not in st.session_state.history:
+            st.session_state.history.append(original_input)
 
         try:
             record_meta = get_antenati_metadata(raw_input if "http" in raw_input else input_id)
@@ -449,8 +466,12 @@ if final_api_key:
                 track_ga_event("image_stitched", {"image_id": input_id})
 
                 # --- TRIGGER 1: Tab 1 (usage_logs) ---
-                # Tab 1: [Timestamp, Session_ID, App_Name, ARK_Unit, ARK_URL]
-                log_to_gsheets("usage_logs", [APP_NAME, ark_part1, raw_input])
+                # Tab 1: [Timestamp, Session_ID, App_Name, ARK_Unit, ARK_URL, Original_URL (Optional)]
+                usage_row = [APP_NAME, ark_part1, raw_input]
+                if raw_input != original_input:
+                    usage_row.append(original_input)
+                
+                log_to_gsheets("usage_logs", usage_row)
                 st.session_state.last_stitched_id = input_id
             
             # Determine descriptive filename
