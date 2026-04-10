@@ -24,11 +24,6 @@ HEADERS = {
     "Referer": "https://antenati.cultura.gov.it/"
 }
 
-# --- GOOGLE ANALYTICS VIA SECRETS ---
-# These pull from .streamlit/secrets.toml or Streamlit Cloud Secrets
-GA_MEASUREMENT_ID = st.secrets.get("GA_MEASUREMENT_ID")
-GA_API_SECRET = st.secrets.get("GA_API_SECRET")
-
 # Cache control
 CACHE_TTL = 900
 
